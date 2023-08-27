@@ -1,0 +1,12 @@
+region: us-east-1
+name: sample-db
+dbName: wordpress
+class: db.m5.large
+engine: postgres
+engineVersion: 15
+storageGb: 20
+backupDays: 0
+dbUser: wordpress
+tags:
+  foo: bar
+
