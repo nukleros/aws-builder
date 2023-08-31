@@ -9,16 +9,22 @@ import (
 
 // RdsConfig contains the configurable parameters for an RDS instance.
 type RdsConfig struct {
-	Tags          map[string]string `yaml:"tags"`
-	Region        string            `yaml:"region"`
-	Name          string            `yaml:"name"`
-	DbName        string            `yaml:"dbName"`
-	Class         string            `yaml:"class"`
-	Engine        string            `yaml:"engine"`
-	EngineVersion string            `yaml:"engineVersion"`
-	StorageGb     int32             `yaml:"storageGb"`
-	BackupDays    int32             `yaml:"backupDays"`
-	DbUser        string            `yaml:"dbUser"`
+	Tags                  map[string]string `yaml:"tags"`
+	AwsAccount            string            `yaml:"awsAccount"`
+	Region                string            `yaml:"region"`
+	VpcId                 string            `yaml:"vpcId"`
+	SubnetIds             []string          `yaml:"subnetIds"`
+	Name                  string            `yaml:"name"`
+	DbName                string            `yaml:"dbName"`
+	Class                 string            `yaml:"class"`
+	Engine                string            `yaml:"engine"`
+	EngineVersion         string            `yaml:"engineVersion"`
+	DbPort                int32             `yaml:"dbPort"`
+	StorageGb             int32             `yaml:"storageGb"`
+	BackupDays            int32             `yaml:"backupDays"`
+	DbUser                string            `yaml:"dbUser"`
+	DbUserPassword        string            `yaml:"dbUserPassword"`
+	SourceSecurityGroupId string            `yaml:"sourceSecurityGroupId"`
 }
 
 // LoadRdsConfig loads an RDS config from a config file and returns the

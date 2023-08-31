@@ -9,8 +9,10 @@ import (
 
 // RdsInventory contains RDS inventory resources used for an RDS instance.
 type RdsInventory struct {
-	Region        string `json:"region"`
-	RdsInstanceId string `json:"rdsInstanceId"`
+	Region          string `json:"region"`
+	RdsInstanceId   string `json:"rdsInstanceId"`
+	SubnetGroupName string `json:"subnetGroupName"`
+	SecurityGroupId string `json:"securityGroupId"`
 }
 
 // send sends the RDS inventory on the inventory channel.

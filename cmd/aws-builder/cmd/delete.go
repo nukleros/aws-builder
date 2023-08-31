@@ -56,7 +56,7 @@ var deleteCmd = &cobra.Command{
 
 			// delete resources
 			if err := rdsClient.DeleteRdsResourceStack(rdsInventory); err != nil {
-				return fmt.Errorf("failed to create RDS resource stack: %w", err)
+				return fmt.Errorf("failed to remove RDS resource stack: %w", err)
 			}
 			fmt.Println("RDS resource stack deleted")
 		default:

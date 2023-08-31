@@ -9,6 +9,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 )
 
+type RdsCondition string
+
+const (
+	RdsConditionCreated     RdsCondition = "RdsCreated"
+	RdsConditionDeleted     RdsCondition = "RdsDelete"
+	RdsCheckIntervalSeconds              = 15 // check cluster status every 15 seconds
+	RdsCheckMaxCount                     = 60 // check 60 time before giving up (15 minutes)
+)
+
 // CreateRdsInstance creates a new RDS instance.
 func (c *RdsClient) CreateRdsInstance(
 	tags *[]types.Tag,
@@ -20,37 +29,43 @@ func (c *RdsClient) CreateRdsInstance(
 	storageGb int32,
 	backupDays int32,
 	dbUser string,
+	dbPassword string,
+	securityGroupId string,
+	subnetGroupName string,
 ) (*types.DBInstance, error) {
 	svc := awsrds.NewFromConfig(*c.AwsConfig)
 
 	copyTagsToSnapshot := true
-	managePassword := true
+	//managePassword := true
 	monitoringInterval := int32(0)
 	multiAz := false
 	public := false
 	createRdsInput := awsrds.CreateDBInstanceInput{
-		DBInstanceIdentifier:     &instanceName,
-		DBName:                   &dbName,
-		DBInstanceClass:          &class,
-		Engine:                   &engine,
-		EngineVersion:            &engineVersion,
-		AllocatedStorage:         &storageGb,
-		BackupRetentionPeriod:    &backupDays,
-		CopyTagsToSnapshot:       &copyTagsToSnapshot,
-		ManageMasterUserPassword: &managePassword,
-		MasterUsername:           &dbUser,
-		MonitoringInterval:       &monitoringInterval,
-		MultiAZ:                  &multiAz,
-		PubliclyAccessible:       &public,
-		Tags:                     *tags,
+		DBInstanceIdentifier:  &instanceName,
+		DBName:                &dbName,
+		DBInstanceClass:       &class,
+		Engine:                &engine,
+		EngineVersion:         &engineVersion,
+		AllocatedStorage:      &storageGb,
+		BackupRetentionPeriod: &backupDays,
+		CopyTagsToSnapshot:    &copyTagsToSnapshot,
+		//ManageMasterUserPassword: &managePassword,
+		MasterUsername:      &dbUser,
+		MasterUserPassword:  &dbPassword,
+		MonitoringInterval:  &monitoringInterval,
+		MultiAZ:             &multiAz,
+		PubliclyAccessible:  &public,
+		VpcSecurityGroupIds: []string{securityGroupId},
+		DBSubnetGroupName:   &subnetGroupName,
+		Tags:                *tags,
 		//CustomIamInstanceProfile: &iamProfileName,
 	}
-	resp, err := svc.CreateDBInstance(c.Context, &createRdsInput)
+	rdsResp, err := svc.CreateDBInstance(c.Context, &createRdsInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RDS instance %s: %w", instanceName, err)
 	}
 
-	return resp.DBInstance, nil
+	return rdsResp.DBInstance, nil
 }
 
 // DeleteRdsInstance removes an existing RDS instance.
@@ -75,27 +90,37 @@ func (c *RdsClient) DeleteRdsInstance(rdsInstanceId string) error {
 
 // WaitForRdsInstance waits for an RDS instance to become available and times
 // out after 10 min if it fails to become ready in that time.
-func (c *RdsClient) WaitForRdsInstance(rdsInstanceId string) error {
-	rdsInstCheckCount := 0
-	rdsInstCheckIntervalSeconds := 10
-	rdsInstMaxCheck := 60
+func (c *RdsClient) WaitForRdsInstance(rdsInstanceId string, rdsCondition RdsCondition) error {
+	// if no instance ID, nothing to check
+	if rdsInstanceId == "" {
+		return nil
+	}
 
+	rdsCheckCount := 0
 	for {
-		rdsInstCheckCount += 1
-		if rdsInstCheckCount > rdsInstMaxCheck {
+		rdsCheckCount += 1
+		if rdsCheckCount > RdsCheckMaxCount {
 			return errors.New("RDS instance check timed out waiting for it be ready")
 		}
 
 		rdsInstanceStatus, err := c.getRdsInstanceStatus(rdsInstanceId)
 		if err != nil {
-			return fmt.Errorf("failed to get RDS instance status with identifier %s: %w", rdsInstanceId, err)
+			if errors.Is(err, ErrResourceNotFound) && rdsCondition == RdsConditionDeleted {
+				// RDS instance was not found and we're waiting for deletion so
+				// condition is met
+				break
+			} else {
+				return fmt.Errorf("failed to get RDS instance status with identifier %s: %w", rdsInstanceId, err)
+			}
 		}
 
-		if rdsInstanceStatus == "available" {
+		if rdsInstanceStatus == "available" && rdsCondition == RdsConditionCreated {
+			// RDS instance is available and we're waiting for creation so
+			// condition is met
 			break
 		}
 
-		time.Sleep(time.Second * time.Duration(rdsInstCheckIntervalSeconds))
+		time.Sleep(time.Second * time.Duration(RdsCheckIntervalSeconds))
 	}
 
 	return nil
@@ -110,7 +135,12 @@ func (c *RdsClient) getRdsInstanceStatus(rdsInstanceId string) (string, error) {
 	}
 	resp, err := svc.DescribeDBInstances(c.Context, &describeRdsInput)
 	if err != nil {
-		return "", fmt.Errorf("failed to describe RDS instance with identifier %s: %w", rdsInstanceId, err)
+		var notFoundErr *types.DBInstanceNotFoundFault
+		if errors.As(err, &notFoundErr) {
+			return "", ErrResourceNotFound
+		} else {
+			return "", fmt.Errorf("failed to describe RDS instance with identifier %s: %w", rdsInstanceId, err)
+		}
 	}
 
 	switch {

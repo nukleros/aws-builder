@@ -1,12 +1,27 @@
+awsAccount: "575822346426"
 region: us-east-1
-name: sample-db
+####################################################
+## set VPC for new runtime
+vpcId: vpc-05bdc8b810575d814
+## set subnets for new runtime
+subnetIds:
+  - subnet-01e93a19e48ca88aa
+  - subnet-0dc289a337698e9c5
+  - subnet-07a320589f1265769
+  - subnet-0f55391b0691a9fdd
+name: wordpress-db
 dbName: wordpress
 class: db.m5.large
-engine: postgres
-engineVersion: 15
+engine: mariadb
+engineVersion: "10.6"
+dbPort: 3306
 storageGb: 20
 backupDays: 0
 dbUser: wordpress
+dbUserPassword: Ja9FZvvH6oWbIhdr
+####################################################
+## set security group ID for VPC where EKS is running
+sourceSecurityGroupId: sg-06918677c4e7be883
 tags:
-  foo: bar
+  App: wordpress
 
