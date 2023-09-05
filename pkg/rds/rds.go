@@ -88,33 +88,41 @@ func (c *RdsClient) DeleteRdsInstance(rdsInstanceId string) error {
 	return nil
 }
 
-// WaitForRdsInstance waits for an RDS instance to become available and times
-// out after 10 min if it fails to become ready in that time.
-func (c *RdsClient) WaitForRdsInstance(rdsInstanceId string, rdsCondition RdsCondition) error {
-	// if no instance ID, nothing to check
+// WaitForRdsInstance waits for an instance to reach the desired condition.  If
+// waiting for creation, it returns when the DB instance is available and
+// returns its endpoint.  If waiting for deletion, it returns when the DB
+// instance is not found.  In either case, it times out after 10 min if the
+// desired condition is not reached.
+func (c *RdsClient) WaitForRdsInstance(
+	rdsInstanceId string,
+	rdsCondition RdsCondition,
+) (string, error) {
+	var dbEndpoint string
+
 	if rdsInstanceId == "" {
-		return nil
+		return dbEndpoint, nil
 	}
 
 	rdsCheckCount := 0
 	for {
 		rdsCheckCount += 1
 		if rdsCheckCount > RdsCheckMaxCount {
-			return errors.New("RDS instance check timed out waiting for it be ready")
+			return dbEndpoint, errors.New("RDS instance check timed out waiting for the desired condition")
 		}
 
-		rdsInstanceStatus, err := c.getRdsInstanceStatus(rdsInstanceId)
+		rdsInstance, err := c.getRdsInstance(rdsInstanceId)
 		if err != nil {
 			if errors.Is(err, ErrResourceNotFound) && rdsCondition == RdsConditionDeleted {
 				// RDS instance was not found and we're waiting for deletion so
 				// condition is met
 				break
 			} else {
-				return fmt.Errorf("failed to get RDS instance status with identifier %s: %w", rdsInstanceId, err)
+				return dbEndpoint, fmt.Errorf("failed to get RDS instance status with identifier %s: %w", rdsInstanceId, err)
 			}
 		}
 
-		if rdsInstanceStatus == "available" && rdsCondition == RdsConditionCreated {
+		if *rdsInstance.DBInstanceStatus == "available" && rdsCondition == RdsConditionCreated {
+			dbEndpoint = *rdsInstance.Endpoint.Address
 			// RDS instance is available and we're waiting for creation so
 			// condition is met
 			break
@@ -123,11 +131,11 @@ func (c *RdsClient) WaitForRdsInstance(rdsInstanceId string, rdsCondition RdsCon
 		time.Sleep(time.Second * time.Duration(RdsCheckIntervalSeconds))
 	}
 
-	return nil
+	return dbEndpoint, nil
 }
 
-// getRdsInstanceStatus retrieves the status of an RDS instance.
-func (c *RdsClient) getRdsInstanceStatus(rdsInstanceId string) (string, error) {
+// getRdsInstance retrieves an RDS DBInstance.
+func (c *RdsClient) getRdsInstance(rdsInstanceId string) (*types.DBInstance, error) {
 	svc := awsrds.NewFromConfig(*c.AwsConfig)
 
 	describeRdsInput := awsrds.DescribeDBInstancesInput{
@@ -137,18 +145,18 @@ func (c *RdsClient) getRdsInstanceStatus(rdsInstanceId string) (string, error) {
 	if err != nil {
 		var notFoundErr *types.DBInstanceNotFoundFault
 		if errors.As(err, &notFoundErr) {
-			return "", ErrResourceNotFound
+			return nil, ErrResourceNotFound
 		} else {
-			return "", fmt.Errorf("failed to describe RDS instance with identifier %s: %w", rdsInstanceId, err)
+			return nil, fmt.Errorf("failed to describe RDS instance with identifier %s: %w", rdsInstanceId, err)
 		}
 	}
 
 	switch {
 	case len(resp.DBInstances) == 0:
-		return "", errors.New(fmt.Sprintf("failed to find any RDS instances with identifier %s", rdsInstanceId))
+		return nil, errors.New(fmt.Sprintf("failed to find any RDS instances with identifier %s", rdsInstanceId))
 	case len(resp.DBInstances) > 1:
-		return "", errors.New(fmt.Sprintf("received back more than one RDS instance with identifier %s", rdsInstanceId))
+		return nil, errors.New(fmt.Sprintf("received back more than one RDS instance with identifier %s", rdsInstanceId))
 	}
 
-	return *resp.DBInstances[0].DBInstanceStatus, nil
+	return &resp.DBInstances[0], nil
 }

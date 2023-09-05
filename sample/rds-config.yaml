@@ -1,17 +1,15 @@
 awsAccount: "575822346426"
 region: us-east-1
-####################################################
-## set VPC for new runtime
-vpcId: vpc-05bdc8b810575d814
-## set subnets for new runtime
-subnetIds:
-  - subnet-01e93a19e48ca88aa
-  - subnet-0dc289a337698e9c5
-  - subnet-07a320589f1265769
-  - subnet-0f55391b0691a9fdd
-name: wordpress-db
+sourceSecurityGroupId: sg-0de0fd0accc233db1   # security group for client workload to allow DB connection
+vpcId: vpc-00eadea13c15c5975                  # VPC where RDS instance should runt
+subnetIds:                                    # subnets to deploy RDS instance to
+  - subnet-0c55f5bcaa09bef68
+  - subnet-02f9a3a6af5169cac
+  - subnet-0bd64ff0d8b709095
+  - subnet-0401c349e5feda964
+name: wordpress-db-0
 dbName: wordpress
-class: db.m5.large
+class: db.t3.small
 engine: mariadb
 engineVersion: "10.6"
 dbPort: 3306
@@ -19,9 +17,6 @@ storageGb: 20
 backupDays: 0
 dbUser: wordpress
 dbUserPassword: Ja9FZvvH6oWbIhdr
-####################################################
-## set security group ID for VPC where EKS is running
-sourceSecurityGroupId: sg-06918677c4e7be883
 tags:
   App: wordpress
 

@@ -81,7 +81,12 @@ func (c *RdsClient) CreateRdsResourceStack(resourceConfig *RdsConfig) error {
 	}
 	c.SendMessage(fmt.Sprintf("RDS instance %s created\n", *rdsInstance.DBInstanceIdentifier))
 	c.SendMessage(fmt.Sprintf("waiting for RDS instance %s to become available\n", *rdsInstance.DBInstanceIdentifier))
-	if err := c.WaitForRdsInstance(*rdsInstance.DBInstanceIdentifier, RdsConditionCreated); err != nil {
+	endpoint, err := c.WaitForRdsInstance(*rdsInstance.DBInstanceIdentifier, RdsConditionCreated)
+	if endpoint != "" && c.InventoryChan != nil {
+		inventory.RdsInstanceEndpoint = endpoint
+		inventory.send(c.InventoryChan)
+	}
+	if err != nil {
 		return err
 	}
 	c.SendMessage(fmt.Sprintf("RDS instance %s is available\n", *rdsInstance.DBInstanceIdentifier))
@@ -99,11 +104,13 @@ func (c *RdsClient) DeleteRdsResourceStack(inventory *RdsInventory) error {
 	}
 	c.SendMessage(fmt.Sprintf("RDS instance %s deleted\n", inventory.RdsInstanceId))
 	c.SendMessage(fmt.Sprintf("waiting for RDS instance %s to be removed\n", inventory.RdsInstanceId))
-	if err := c.WaitForRdsInstance(inventory.RdsInstanceId, RdsConditionDeleted); err != nil {
+	_, err := c.WaitForRdsInstance(inventory.RdsInstanceId, RdsConditionDeleted)
+	if err != nil {
 		return err
 	}
 	c.SendMessage(fmt.Sprintf("RDS instance %s has been removed\n", inventory.RdsInstanceId))
 	inventory.RdsInstanceId = ""
+	inventory.RdsInstanceEndpoint = ""
 	inventory.send(c.InventoryChan)
 
 	// Subnet Group
