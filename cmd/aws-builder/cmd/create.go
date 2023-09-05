@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -24,6 +25,8 @@ var createCmd = &cobra.Command{
 Supported resource stacks:
 * rds (Relational Database Service)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("creating AWS resource stack...")
+
 		// ensure resource stack argument provided
 		if len(args) < 2 {
 			return fmt.Errorf("missing arguments")
@@ -38,8 +41,14 @@ Supported resource stacks:
 		// create resource client
 		resourceClient := client.CreateResourceClient(awsConfig)
 
+		// use a wait group to ensure messages and inventory are processed
+		// before quitting
+		var createWait sync.WaitGroup
+
 		// capture messages as resources are created and return to user
+		createWait.Add(1)
 		go func() {
+			defer createWait.Done()
 			for msg := range *resourceClient.MessageChan {
 				fmt.Println(msg)
 			}
@@ -49,21 +58,32 @@ Supported resource stacks:
 		switch args[0] {
 		case "rds":
 			// create client and config for resource creation
-			rdsClient, rdsConfig, err := rds.InitCreate(resourceClient, args[1], createInventoryFile)
+			invChan := make(chan rds.RdsInventory)
+			rdsClient, rdsConfig, err := rds.InitCreate(
+				resourceClient,
+				args[1],
+				createInventoryFile,
+				&invChan,
+				&createWait,
+			)
 			if err != nil {
-				return fmt.Errorf("failed to initialize resource client and config: %w", err)
+				return fmt.Errorf("failed to initialize RDS resource client and config: %w", err)
 			}
-
-			fmt.Println("creating RDS instance resource stack...")
 
 			// create resources
 			if err := rdsClient.CreateRdsResourceStack(rdsConfig); err != nil {
 				return fmt.Errorf("failed to create RDS resource stack: %w", err)
 			}
-			fmt.Println("RDS resource stack created")
+			close(invChan)
 		default:
 			return errors.New("unrecognized resource stack")
 		}
+
+		close(*resourceClient.MessageChan)
+
+		// wait until all inventory and message goroutines have completed
+		createWait.Wait()
+		fmt.Println("AWS resource stack created")
 
 		return nil
 	},

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -22,6 +22,8 @@ var deleteCmd = &cobra.Command{
 	Short: "Remove an AWS resource stack",
 	Long:  `Remove an AWS resource stack.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("deleting AWS resource stack...")
+
 		// ensure resource stack argument provided
 		if len(args) < 2 {
 			return fmt.Errorf("missing arguments")
@@ -36,8 +38,14 @@ var deleteCmd = &cobra.Command{
 		// create resource client
 		resourceClient := client.CreateResourceClient(awsConfig)
 
+		// use a wait group to ensure messages and inventory are processed
+		// before quitting
+		var deleteWait sync.WaitGroup
+
 		// capture messages as resources are deleted and return to user
+		deleteWait.Add(1)
 		go func() {
+			defer deleteWait.Done()
 			for msg := range *resourceClient.MessageChan {
 				fmt.Println(msg)
 			}
@@ -47,34 +55,37 @@ var deleteCmd = &cobra.Command{
 		switch args[0] {
 		case "rds":
 			// create client and config for resource deletion
-			rdsClient, rdsInventory, err := rds.InitDelete(resourceClient, args[1])
+			invChan := make(chan rds.RdsInventory)
+			rdsClient, rdsInventory, err := rds.InitDelete(
+				resourceClient,
+				args[1],
+				&invChan,
+				&deleteWait,
+			)
 			if err != nil {
-				return fmt.Errorf("failed to initialize resource client and config: %w", err)
+				return fmt.Errorf("failed to initialize resource client and inventory: %w", err)
 			}
-
-			fmt.Println("deleting RDS instance resource stack...")
 
 			// delete resources
 			if err := rdsClient.DeleteRdsResourceStack(rdsInventory); err != nil {
 				return fmt.Errorf("failed to remove RDS resource stack: %w", err)
 			}
-			fmt.Println("RDS resource stack deleted")
+			close(invChan)
 		default:
 			return errors.New("unrecognized resource stack")
 		}
 
-		// allow 3 seconds for final inventory updates to be made so file can be
-		// properly deleted
-		time.Sleep(time.Second * 3)
+		close(*resourceClient.MessageChan)
+
+		// wait until all inventory and message goroutines have completed
+		deleteWait.Wait()
+		fmt.Println("AWS resources deleted")
 
 		// remove inventory file from filesystem
 		if err := os.Remove(args[1]); err != nil {
 			return fmt.Errorf("failed to remove eks cluster inventory file: %w", err)
 		}
-
 		fmt.Printf("Inventory file '%s' deleted\n", args[1])
-
-		fmt.Println("AWS resources deleted")
 
 		return nil
 	},

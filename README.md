@@ -17,9 +17,15 @@ make build
 
 Create an RDS instance:
 
+Edit the `sample/rds-config.yaml` file to match your environment.
+
 ```bash
 ./bin/aws-builder create rds sample/rds-config.yaml
 ```
 
-TODO: library usage example
+## Library
+
+For examples of how to use the library to manage AWS resources in a go program,
+see the [create](cmd/aws-builder/cmd/create.go) and
+[delete](cmd/aws-builder/cmd/delete.go) command source code.
 

@@ -2,6 +2,7 @@ package rds
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/nukleros/aws-builder/pkg/client"
 )
@@ -13,11 +14,14 @@ func InitCreate(
 	resourceClient *client.ResourceClient,
 	configFile string,
 	inventoryFile string,
+	inventoryChan *chan RdsInventory,
+	createWait *sync.WaitGroup,
 ) (*RdsClient, *RdsConfig, error) {
 	// capture inventory and write to file as resources are created
-	invChan := make(chan RdsInventory)
+	createWait.Add(1)
 	go func() {
-		for inventory := range invChan {
+		defer createWait.Done()
+		for inventory := range *inventoryChan {
 			if err := inventory.Write(inventoryFile); err != nil {
 				fmt.Printf("failed to write inventory file: %s", err)
 			}
@@ -27,7 +31,7 @@ func InitCreate(
 	// create client and load config
 	rdsClient := RdsClient{
 		*resourceClient,
-		&invChan,
+		inventoryChan,
 	}
 	rdsConfig, err := LoadRdsConfig(configFile)
 	if err != nil {
@@ -43,11 +47,14 @@ func InitCreate(
 func InitDelete(
 	resourceClient *client.ResourceClient,
 	inventoryFile string,
+	inventoryChan *chan RdsInventory,
+	deleteWait *sync.WaitGroup,
 ) (*RdsClient, *RdsInventory, error) {
 	// capture inventory and write to file as resources are deleted
-	invChan := make(chan RdsInventory)
+	deleteWait.Add(1)
 	go func() {
-		for inventory := range invChan {
+		defer deleteWait.Done()
+		for inventory := range *inventoryChan {
 			if err := inventory.Write(inventoryFile); err != nil {
 				fmt.Printf("failed to write inventory file: %s", err)
 			}
@@ -57,7 +64,7 @@ func InitDelete(
 	// create client and load inventory to delete
 	rdsClient := RdsClient{
 		*resourceClient,
-		&invChan,
+		inventoryChan,
 	}
 	var rdsInventory RdsInventory
 	if err := rdsInventory.Load(inventoryFile); err != nil {
