@@ -1,0 +1,15 @@
+awsAccount: "575822346426"
+name: test-0
+region: us-east-1
+publicReadAccess: false
+tags:
+  foo: bar
+####################################################
+# update following values to reflect client workload
+####################################################
+vpcIdReadWriteAccess: "vpc-011a5ad93b522fd8a"  # VPC for EKS cluster where client workload is running
+workloadReadWriteAccess:
+  serviceAccountName: "aws-client"  # service account name attached to workload
+  serviceAccountNamespace: "aws-client-0-zk1xgdxp68"  # workload namespace
+  oidcUrl: "https://oidc.eks.us-east-1.amazonaws.com/id/5E665C040EB36614E96E0ABF31EE820D"  # URL for OIDC provider for EKS kube API
+

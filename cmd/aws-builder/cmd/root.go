@@ -4,17 +4,24 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
+const supportedResourceStacks = `
+Supported resource stacks:
+* rds (Relational Database Service)
+* s3 (Simple Storage Service)`
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "aws-builder",
 	Short: "Manage AWS resource stacks",
-	Long: `Manage AWS resource stacks.  This tool allows you to manage all the resources
-needed for particular managed services that serve applications.`,
+	Long: fmt.Sprintf(`Manage AWS resource stacks.  This tool allows you to manage all the resources
+needed for particular managed services that serve applications.
+%s`, supportedResourceStacks),
 }
 
 var (

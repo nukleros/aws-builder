@@ -1,12 +1,5 @@
 awsAccount: "575822346426"
 region: us-east-1
-sourceSecurityGroupId: sg-0de0fd0accc233db1   # security group for client workload to allow DB connection
-vpcId: vpc-00eadea13c15c5975                  # VPC where RDS instance should runt
-subnetIds:                                    # subnets to deploy RDS instance to
-  - subnet-0c55f5bcaa09bef68
-  - subnet-02f9a3a6af5169cac
-  - subnet-0bd64ff0d8b709095
-  - subnet-0401c349e5feda964
 name: wordpress-db-0
 dbName: wordpress
 class: db.t3.small
@@ -19,4 +12,14 @@ dbUser: wordpress
 dbUserPassword: Ja9FZvvH6oWbIhdr
 tags:
   App: wordpress
+###########################################################
+# update following values for tenancy and client connection
+###########################################################
+sourceSecurityGroupId: sg-0de0fd0accc233db1   # security group for client workload to allow DB connection
+vpcId: vpc-00eadea13c15c5975                  # VPC where RDS instance should runt
+subnetIds:                                    # subnets to deploy RDS instance to
+  - subnet-0c55f5bcaa09bef68
+  - subnet-02f9a3a6af5169cac
+  - subnet-0bd64ff0d8b709095
+  - subnet-0401c349e5feda964
 

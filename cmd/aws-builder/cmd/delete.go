@@ -14,13 +14,15 @@ import (
 	"github.com/nukleros/aws-builder/pkg/client"
 	"github.com/nukleros/aws-builder/pkg/config"
 	"github.com/nukleros/aws-builder/pkg/rds"
+	"github.com/nukleros/aws-builder/pkg/s3"
 )
 
 // deleteCmd represents the delete command.
 var deleteCmd = &cobra.Command{
 	Use:   "delete <resource stack> <inventory file>",
 	Short: "Remove an AWS resource stack",
-	Long:  `Remove an AWS resource stack.`,
+	Long: fmt.Sprintf(`Remove an AWS resource stack.
+%s`, supportedResourceStacks),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("deleting AWS resource stack...")
 
@@ -63,12 +65,30 @@ var deleteCmd = &cobra.Command{
 				&deleteWait,
 			)
 			if err != nil {
-				return fmt.Errorf("failed to initialize resource client and inventory: %w", err)
+				return fmt.Errorf("failed to initialize RDS resource client and inventory: %w", err)
 			}
 
 			// delete resources
 			if err := rdsClient.DeleteRdsResourceStack(rdsInventory); err != nil {
 				return fmt.Errorf("failed to remove RDS resource stack: %w", err)
+			}
+			close(invChan)
+		case "s3":
+			// create client and config for resource deletion
+			invChan := make(chan s3.S3Inventory)
+			s3Client, s3Inventory, err := s3.InitDelete(
+				resourceClient,
+				args[1],
+				&invChan,
+				&deleteWait,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to initialize S3 resource client and inventory: %w", err)
+			}
+
+			// delete resources
+			if err := s3Client.DeleteS3ResourceStack(s3Inventory); err != nil {
+				return fmt.Errorf("failed to remove S3 resource stack: %w", err)
 			}
 			close(invChan)
 		default:
