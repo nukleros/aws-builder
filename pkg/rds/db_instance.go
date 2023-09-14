@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	awsrds "github.com/aws/aws-sdk-go-v2/service/rds"
+	aws_rds "github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
 )
 
@@ -33,14 +33,14 @@ func (c *RdsClient) CreateRdsInstance(
 	securityGroupId string,
 	subnetGroupName string,
 ) (*types.DBInstance, error) {
-	svc := awsrds.NewFromConfig(*c.AwsConfig)
+	svc := aws_rds.NewFromConfig(*c.AwsConfig)
 
 	copyTagsToSnapshot := true
 	//managePassword := true
 	monitoringInterval := int32(0)
 	multiAz := false
 	public := false
-	createRdsInput := awsrds.CreateDBInstanceInput{
+	createRdsInput := aws_rds.CreateDBInstanceInput{
 		DBInstanceIdentifier:  &instanceName,
 		DBName:                &dbName,
 		DBInstanceClass:       &class,
@@ -74,9 +74,9 @@ func (c *RdsClient) DeleteRdsInstance(rdsInstanceId string) error {
 		return nil
 	}
 
-	svc := awsrds.NewFromConfig(*c.AwsConfig)
+	svc := aws_rds.NewFromConfig(*c.AwsConfig)
 
-	deleteRdsInput := awsrds.DeleteDBInstanceInput{
+	deleteRdsInput := aws_rds.DeleteDBInstanceInput{
 		DBInstanceIdentifier: &rdsInstanceId,
 		SkipFinalSnapshot:    true,
 	}
@@ -136,9 +136,9 @@ func (c *RdsClient) WaitForRdsInstance(
 
 // getRdsInstance retrieves an RDS DBInstance.
 func (c *RdsClient) getRdsInstance(rdsInstanceId string) (*types.DBInstance, error) {
-	svc := awsrds.NewFromConfig(*c.AwsConfig)
+	svc := aws_rds.NewFromConfig(*c.AwsConfig)
 
-	describeRdsInput := awsrds.DescribeDBInstancesInput{
+	describeRdsInput := aws_rds.DescribeDBInstancesInput{
 		DBInstanceIdentifier: &rdsInstanceId,
 	}
 	resp, err := svc.DescribeDBInstances(c.Context, &describeRdsInput)
