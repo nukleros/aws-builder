@@ -19,11 +19,12 @@ func (c *S3Client) CreateRole(
 	oidcUrl string,
 	serviceAccountName string,
 	serviceAccountNamespace string,
+	nameSuffix string,
 ) (*types.Role, error) {
 	svc := iam.NewFromConfig(*c.AwsConfig)
 
 	oidcUrlBare := strings.Trim(oidcUrl, "https://")
-	roleName := serviceAccountName
+	roleName := fmt.Sprintf("%s-%s", serviceAccountName, nameSuffix)
 	rolePolicyDocument := fmt.Sprintf(`{
     "Version": "2012-10-17",
     "Statement": [

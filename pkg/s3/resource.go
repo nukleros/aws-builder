@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nukleros/aws-builder/internal/util"
 	"github.com/nukleros/aws-builder/pkg/iam"
 )
 
@@ -66,10 +67,12 @@ func (c *S3Client) CreateS3ResourceStack(resourceConfig *S3Config) error {
 	}
 
 	// IAM Policy
+	nameSuffix := util.RandomAlphaNumericString(12)
 	policy, err := c.CreatePolicy(
 		iamTags,
 		bucketName,
 		resourceConfig.WorkloadReadWriteAccess.ServiceAccountName,
+		nameSuffix,
 	)
 	if policy != nil {
 		inventory.PolicyArn = *policy.Arn
@@ -88,6 +91,7 @@ func (c *S3Client) CreateS3ResourceStack(resourceConfig *S3Config) error {
 		resourceConfig.WorkloadReadWriteAccess.OidcUrl,
 		resourceConfig.WorkloadReadWriteAccess.ServiceAccountName,
 		resourceConfig.WorkloadReadWriteAccess.ServiceAccountNamespace,
+		nameSuffix,
 	)
 	if role != nil {
 		roleInventory := RoleInventory{

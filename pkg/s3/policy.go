@@ -14,10 +14,11 @@ func (c *S3Client) CreatePolicy(
 	tags *[]types.Tag,
 	bucketName string,
 	serviceAccountName string,
+	nameSuffix string,
 ) (*types.Policy, error) {
 	svc := iam.NewFromConfig(*c.AwsConfig)
 
-	policyName := serviceAccountName
+	policyName := fmt.Sprintf("%s-%s", serviceAccountName, nameSuffix)
 	policyDescription := "Allow read, create, update and delete of objects in specified bucket"
 	policyDocument := fmt.Sprintf(`{
     "Version": "2012-10-17",
