@@ -27,6 +27,8 @@ needed for particular managed services that serve applications.
 var (
 	awsConfigProfile string
 	awsRegion        string
+	awsRoleArn       string
+	awsSerialNumber  string
 )
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -44,4 +46,8 @@ func init() {
 		"The AWS config profile to draw credentials from when provisioning resources")
 	rootCmd.PersistentFlags().StringVarP(&awsRegion, "aws-region", "r", "",
 		"AWS region to create resources in - if defined will override region in config profile")
+	rootCmd.PersistentFlags().StringVarP(&awsRoleArn, "aws-role-arn", "r", "",
+		"The AWS role ARN to assume when provisioning resources")
+	rootCmd.PersistentFlags().StringVarP(&awsSerialNumber, "aws-serial-number", "s", "",
+		"The AWS serial number to use when authenticating via MFA")
 }
