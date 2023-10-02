@@ -17,6 +17,7 @@ func LoadAWSConfig(
 	configProfile,
 	region,
 	roleArn,
+	externalId,
 	serialNumber string,
 ) (*aws.Config, error) {
 	configOptions := []func(*config.LoadOptions) error{
@@ -25,6 +26,7 @@ func LoadAWSConfig(
 		config.WithAssumeRoleCredentialOptions(
 			func(o *stscreds.AssumeRoleOptions) {
 				o.TokenProvider = stscreds.StdinTokenProvider
+				o.ExternalID = aws.String(externalId)
 			}),
 	}
 
@@ -82,7 +84,7 @@ func LoadAWSConfig(
 
 	// assume role if roleArn is provided
 	if roleArn != "" {
-		awsConfig, err = assumeRole(roleArn, awsConfig, configOptions)
+		awsConfig, err = assumeRole(roleArn, externalId, awsConfig, configOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to assume role: %w", err)
 		}
@@ -100,7 +102,8 @@ func LoadAWSConfigFromAPIKeys(
 	secretAccessKey,
 	token,
 	region,
-	roleArn string,
+	roleArn,
+	externalId string,
 ) (*aws.Config, error) {
 	configOptions := []func(*config.LoadOptions) error{
 		config.WithRegion(region),
@@ -123,7 +126,7 @@ func LoadAWSConfigFromAPIKeys(
 
 	// assume role if roleArn is provided
 	if roleArn != "" {
-		awsConfig, err = assumeRole(roleArn, awsConfig, configOptions)
+		awsConfig, err = assumeRole(roleArn, externalId, awsConfig, configOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to assume role: %w", err)
 		}
@@ -136,7 +139,8 @@ func LoadAWSConfigFromAPIKeys(
 // assumeRole returns an AWS config with temporary credentials
 // from an assumed role.
 func assumeRole(
-	roleArn string,
+	roleArn,
+	externalId string,
 	awsConfig aws.Config,
 	configOptions []func(*config.LoadOptions) error,
 ) (aws.Config, error) {
@@ -145,7 +149,7 @@ func assumeRole(
 		sts.NewFromConfig(awsConfig),
 		roleArn,
 		func(o *stscreds.AssumeRoleOptions) {
-			o.ExternalID = aws.String("eks-cluster")
+			o.ExternalID = aws.String(externalId)
 		})
 
 	// update configOptions with assume role provider

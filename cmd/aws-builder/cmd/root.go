@@ -28,6 +28,7 @@ var (
 	awsConfigProfile string
 	awsRegion        string
 	awsRoleArn       string
+	awsExternalId    string
 	awsSerialNumber  string
 )
 
@@ -48,6 +49,8 @@ func init() {
 		"AWS region to create resources in - if defined will override region in config profile")
 	rootCmd.PersistentFlags().StringVarP(&awsRoleArn, "aws-role-arn", "a", "",
 		"The AWS role ARN to assume when provisioning resources")
+	rootCmd.PersistentFlags().StringVar(&awsExternalId, "aws-external-id", "",
+		"The AWS external ID to use when assuming a role")
 	rootCmd.PersistentFlags().StringVarP(&awsSerialNumber, "aws-serial-number", "s", "",
 		"The AWS serial number to use when authenticating via MFA")
 }
