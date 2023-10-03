@@ -9,9 +9,25 @@ import (
 
 var ErrResourceNotFound = errors.New("resource not found")
 
-// CreateResourceStack creates all the resources for an RDS instance.
-func (c *RdsClient) CreateRdsResourceStack(resourceConfig *RdsConfig) error {
-	var inventory RdsInventory
+// CreateResourceStack creates all the resources for an RDS instance.  If
+// inventory for pre-existing resources are provided, it will not re-create
+// those resources but instead use them as a part of the stack.
+func (c *RdsClient) CreateRdsResourceStack(
+	resourceConfig *RdsConfig,
+	inventory *RdsInventory,
+) error {
+	// return an error if resource config and inventory regions do not match
+	if inventory != nil && inventory.Region != "" && inventory.Region != resourceConfig.Region {
+		return errors.New("different regions provided in config and inventory")
+		return fmt.Errorf(
+			"config region %s and inventory region %s do not match",
+			resourceConfig.Region,
+			inventory.Region,
+		)
+	}
+
+	// resource config region takes precedence
+	// if not set, use the region defined in AWS config
 	if resourceConfig.Region != "" {
 		inventory.Region = resourceConfig.Region
 		c.AwsConfig.Region = resourceConfig.Region
@@ -25,71 +41,97 @@ func (c *RdsClient) CreateRdsResourceStack(resourceConfig *RdsConfig) error {
 	ec2Tags := ec2.CreateEc2Tags(resourceConfig.Name, resourceConfig.Tags)
 
 	// Security Group
-	securityGroupId, err := c.CreateSecurityGroup(
-		ec2Tags,
-		resourceConfig.Name,
-		resourceConfig.VpcId,
-		resourceConfig.DbPort,
-		resourceConfig.SourceSecurityGroupId,
-		resourceConfig.AwsAccount,
-	)
-	if securityGroupId != "" {
-		inventory.SecurityGroupId = securityGroupId
-		inventory.send(c.InventoryChan)
+	var securityGroupId string
+	if inventory != nil && inventory.SecurityGroupId == "" {
+		sgId, err := c.CreateSecurityGroup(
+			ec2Tags,
+			resourceConfig.Name,
+			resourceConfig.VpcId,
+			resourceConfig.DbPort,
+			resourceConfig.SourceSecurityGroupId,
+			resourceConfig.AwsAccount,
+		)
+		if sgId != "" {
+			securityGroupId = sgId
+			inventory.SecurityGroupId = sgId
+			inventory.send(c.InventoryChan)
+		}
+		if err != nil {
+			return err
+		}
+		c.SendMessage(fmt.Sprintf("security group with ID %s created\n", sgId))
+	} else {
+		securityGroupId = inventory.SecurityGroupId
+		c.SendMessage(fmt.Sprintf("security group with ID %s found in inventory\n", inventory.SecurityGroupId))
 	}
-	if err != nil {
-		return err
-	}
-	c.SendMessage(fmt.Sprintf("security group with ID %s created\n", securityGroupId))
 
 	// Subnet Group
-	subnetGroup, err := c.CreateSubnetGroup(
-		rdsTags,
-		resourceConfig.Name,
-		resourceConfig.SubnetIds,
-	)
-	if subnetGroup != nil {
-		inventory.SubnetGroupName = *subnetGroup.DBSubnetGroupName
-		inventory.send(c.InventoryChan)
+	var subnetGroupName string
+	if inventory != nil && inventory.SubnetGroupName == "" {
+		subnetGroup, err := c.CreateSubnetGroup(
+			rdsTags,
+			resourceConfig.Name,
+			resourceConfig.SubnetIds,
+		)
+		if subnetGroup != nil {
+			subnetGroupName = *subnetGroup.DBSubnetGroupName
+			inventory.SubnetGroupName = *subnetGroup.DBSubnetGroupName
+			inventory.send(c.InventoryChan)
+		}
+		if err != nil {
+			return err
+		}
+		c.SendMessage(fmt.Sprintf("subnet group %s created\n", *subnetGroup.DBSubnetGroupName))
+	} else {
+		subnetGroupName = inventory.SubnetGroupName
+		c.SendMessage(fmt.Sprintf("subnet group %s found in inventory\n", inventory.SubnetGroupName))
 	}
-	if err != nil {
-		return err
-	}
-	c.SendMessage(fmt.Sprintf("subnet group %s created\n", *subnetGroup.DBSubnetGroupName))
 
 	// RDS Instance
-	rdsInstance, err := c.CreateRdsInstance(
-		rdsTags,
-		resourceConfig.Name,
-		resourceConfig.DbName,
-		resourceConfig.Class,
-		resourceConfig.Engine,
-		resourceConfig.EngineVersion,
-		resourceConfig.StorageGb,
-		resourceConfig.BackupDays,
-		resourceConfig.DbUser,
-		resourceConfig.DbUserPassword,
-		securityGroupId,
-		*subnetGroup.DBSubnetGroupName,
-	)
-	if rdsInstance != nil {
-		inventory.RdsInstanceId = *rdsInstance.DBInstanceIdentifier
-		inventory.send(c.InventoryChan)
+	var rdsInstanceId string
+	if inventory != nil && inventory.RdsInstanceId == "" {
+		rdsInstance, err := c.CreateRdsInstance(
+			rdsTags,
+			resourceConfig.Name,
+			resourceConfig.DbName,
+			resourceConfig.Class,
+			resourceConfig.Engine,
+			resourceConfig.EngineVersion,
+			resourceConfig.StorageGb,
+			resourceConfig.BackupDays,
+			resourceConfig.DbUser,
+			resourceConfig.DbUserPassword,
+			securityGroupId,
+			subnetGroupName,
+		)
+		if rdsInstance != nil {
+			rdsInstanceId = *rdsInstance.DBInstanceIdentifier
+			inventory.RdsInstanceId = *rdsInstance.DBInstanceIdentifier
+			inventory.send(c.InventoryChan)
+		}
+		if err != nil {
+			return err
+		}
+		c.SendMessage(fmt.Sprintf("RDS instance %s created\n", *rdsInstance.DBInstanceIdentifier))
+	} else {
+		rdsInstanceId = inventory.RdsInstanceId
+		c.SendMessage(fmt.Sprintf("RDS instance %s found in inventory\n", inventory.RdsInstanceId))
 	}
-	if err != nil {
-		return err
+
+	// RDS Instance Endpoint
+	if inventory != nil && inventory.RdsInstanceEndpoint == "" {
+		c.SendMessage(fmt.Sprintf("waiting for RDS instance %s to become available\n", rdsInstanceId))
+		endpoint, err := c.WaitForRdsInstance(rdsInstanceId, RdsConditionCreated)
+		fmt.Println(c.InventoryChan)
+		if endpoint != "" && c.InventoryChan != nil {
+			inventory.RdsInstanceEndpoint = endpoint
+			inventory.send(c.InventoryChan)
+		}
+		if err != nil {
+			return err
+		}
+		c.SendMessage(fmt.Sprintf("RDS instance %s is available\n", rdsInstanceId))
 	}
-	c.SendMessage(fmt.Sprintf("RDS instance %s created\n", *rdsInstance.DBInstanceIdentifier))
-	c.SendMessage(fmt.Sprintf("waiting for RDS instance %s to become available\n", *rdsInstance.DBInstanceIdentifier))
-	endpoint, err := c.WaitForRdsInstance(*rdsInstance.DBInstanceIdentifier, RdsConditionCreated)
-	if endpoint != "" && c.InventoryChan != nil {
-		inventory.RdsInstanceEndpoint = endpoint
-		inventory.send(c.InventoryChan)
-	}
-	if err != nil {
-		return err
-	}
-	c.SendMessage(fmt.Sprintf("RDS instance %s is available\n", *rdsInstance.DBInstanceIdentifier))
 
 	return nil
 }

@@ -18,7 +18,9 @@ const (
 	RdsCheckMaxCount                     = 60 // check 60 time before giving up (15 minutes)
 )
 
-// CreateRdsInstance creates a new RDS instance.
+// CreateRdsInstance creates a new RDS instance.  If an RDS instance with
+// matching name and tags already exists, that DB instance will be returned and
+// used in the resource stack to ensure idempotency.
 func (c *RdsClient) CreateRdsInstance(
 	tags *[]types.Tag,
 	instanceName string,
@@ -62,7 +64,18 @@ func (c *RdsClient) CreateRdsInstance(
 	}
 	rdsResp, err := svc.CreateDBInstance(c.Context, &createRdsInput)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create RDS instance %s: %w", instanceName, err)
+		var alreadyExists *types.DBInstanceAlreadyExistsFault
+		if errors.As(err, &alreadyExists) {
+			dbInstance, uniqueTagsExist, err := c.checkRdsInstanceUniqueTags(instanceName, tags)
+			if err != nil {
+				return nil, fmt.Errorf("failed to check for unique tags on RDS instance %s that already exists: %w", instanceName, err)
+			}
+			if uniqueTagsExist {
+				return dbInstance, nil
+			}
+		} else {
+			return nil, fmt.Errorf("failed to create RDS instance %s: %w", instanceName, err)
+		}
 	}
 
 	return rdsResp.DBInstance, nil
@@ -159,4 +172,50 @@ func (c *RdsClient) getRdsInstance(rdsInstanceId string) (*types.DBInstance, err
 	}
 
 	return &resp.DBInstances[0], nil
+}
+
+// checkRdsInstanceUniqueTags checks to see if an RDS instance with matching
+// name and tags already exists.
+func (c *RdsClient) checkRdsInstanceUniqueTags(
+	instanceName string,
+	tags *[]types.Tag,
+) (*types.DBInstance, bool, error) {
+	svc := aws_rds.NewFromConfig(*c.AwsConfig)
+
+	describeRdsInput := aws_rds.DescribeDBInstancesInput{
+		DBInstanceIdentifier: &instanceName,
+	}
+	resp, err := svc.DescribeDBInstances(c.Context, &describeRdsInput)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to describe RDS instances to check for unique tags: %w", err)
+	}
+
+	for _, rdsInstance := range resp.DBInstances {
+		listTagsInput := aws_rds.ListTagsForResourceInput{
+			ResourceName: rdsInstance.DBInstanceArn,
+		}
+		tagsResp, err := svc.ListTagsForResource(c.Context, &listTagsInput)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to list tags for RDS instance %s: %w", instanceName, err)
+		}
+		allTagsFound := true
+		for _, resourceTag := range tagsResp.TagList {
+			tagFound := false
+			for _, providedTag := range *tags {
+				if *providedTag.Key == *resourceTag.Key && *providedTag.Value == *resourceTag.Value {
+					tagFound = true
+					break
+				}
+			}
+			if !tagFound {
+				allTagsFound = false
+				break
+			}
+		}
+		if allTagsFound {
+			return &rdsInstance, true, nil
+		}
+	}
+
+	return nil, false, nil
 }

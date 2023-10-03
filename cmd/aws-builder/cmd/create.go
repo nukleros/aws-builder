@@ -16,7 +16,10 @@ import (
 	"github.com/nukleros/aws-builder/pkg/s3"
 )
 
-var createInventoryFile string
+var (
+	createInventoryFile string
+	inputInventoryFile  string
+)
 
 // createCmd represents the create command.
 var createCmd = &cobra.Command{
@@ -75,8 +78,16 @@ var createCmd = &cobra.Command{
 				return fmt.Errorf("failed to initialize RDS resource client and config: %w", err)
 			}
 
+			// load input inventory if provided
+			var rdsInventory rds.RdsInventory
+			if inputInventoryFile != "" {
+				if err := rdsInventory.Load(inputInventoryFile); err != nil {
+					return fmt.Errorf("failed to load input inventory: %w", err)
+				}
+			}
+
 			// create resources
-			if err := rdsClient.CreateRdsResourceStack(rdsConfig); err != nil {
+			if err := rdsClient.CreateRdsResourceStack(rdsConfig, &rdsInventory); err != nil {
 				return fmt.Errorf("failed to create RDS resource stack: %w", err)
 			}
 			close(invChan)
@@ -118,5 +129,9 @@ func init() {
 	createCmd.Flags().StringVarP(
 		&createInventoryFile, "inventory-file", "i", "",
 		"File to write AWS resource inventory to",
+	)
+	createCmd.Flags().StringVarP(
+		&inputInventoryFile, "input-inventory-file", "", "",
+		"File to read existing inventory from; existing inventory will be used as a part of the resource stack",
 	)
 }

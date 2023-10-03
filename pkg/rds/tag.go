@@ -13,9 +13,11 @@ func CreateRdsTags(name string, customTags map[string]string) *[]types.Tag {
 		},
 	}
 	for k, v := range customTags {
+		key := k
+		val := v
 		t := types.Tag{
-			Key:   &k,
-			Value: &v,
+			Key:   &key,
+			Value: &val,
 		}
 		tags = append(tags, t)
 	}

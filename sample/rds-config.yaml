@@ -12,6 +12,7 @@ dbUser: wordpress
 dbUserPassword: Ja9FZvvH6oWbIhdr
 tags:
   App: wordpress
+  UniqueId: 123
 ###########################################################
 # update following values for tenancy and client connection
 ###########################################################
