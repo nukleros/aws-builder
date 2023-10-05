@@ -191,28 +191,15 @@ func (c *RdsClient) checkRdsInstanceUniqueTags(
 	}
 
 	for _, rdsInstance := range resp.DBInstances {
-		listTagsInput := aws_rds.ListTagsForResourceInput{
-			ResourceName: rdsInstance.DBInstanceArn,
-		}
-		tagsResp, err := svc.ListTagsForResource(c.Context, &listTagsInput)
+		tagsMatch, err := c.CheckUniqueTagsForResource(
+			*rdsInstance.DBInstanceArn,
+			tags,
+		)
 		if err != nil {
-			return nil, false, fmt.Errorf("failed to list tags for RDS instance %s: %w", instanceName, err)
+			return nil, false, fmt.Errorf("failed to check unique tags for RDS instance %s: %w", *rdsInstance.DBInstanceIdentifier, err)
 		}
-		allTagsFound := true
-		for _, resourceTag := range tagsResp.TagList {
-			tagFound := false
-			for _, providedTag := range *tags {
-				if *providedTag.Key == *resourceTag.Key && *providedTag.Value == *resourceTag.Value {
-					tagFound = true
-					break
-				}
-			}
-			if !tagFound {
-				allTagsFound = false
-				break
-			}
-		}
-		if allTagsFound {
+
+		if tagsMatch {
 			return &rdsInstance, true, nil
 		}
 	}

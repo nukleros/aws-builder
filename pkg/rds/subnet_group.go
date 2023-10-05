@@ -83,28 +83,15 @@ func (c *RdsClient) checkSubnetGroupUniqueTags(
 	}
 
 	for _, subnetGroup := range resp.DBSubnetGroups {
-		listTagsInput := aws_rds.ListTagsForResourceInput{
-			ResourceName: subnetGroup.DBSubnetGroupArn,
-		}
-		tagsResp, err := svc.ListTagsForResource(c.Context, &listTagsInput)
+		tagsMatch, err := c.CheckUniqueTagsForResource(
+			*subnetGroup.DBSubnetGroupArn,
+			tags,
+		)
 		if err != nil {
-			return nil, false, fmt.Errorf("failed to list tags for DB subnet group %s: %w", &subnetGroup.DBSubnetGroupName, err)
+			return nil, false, fmt.Errorf("failed to check unique tags for DB subnet group %s: %w", *subnetGroup.DBSubnetGroupName, err)
 		}
-		allTagsFound := true
-		for _, resourceTag := range tagsResp.TagList {
-			tagFound := false
-			for _, providedTag := range *tags {
-				if *providedTag.Key == *resourceTag.Key && *providedTag.Value == *resourceTag.Value {
-					tagFound = true
-					break
-				}
-			}
-			if !tagFound {
-				allTagsFound = false
-				break
-			}
-		}
-		if allTagsFound {
+
+		if tagsMatch {
 			return &subnetGroup, true, nil
 		}
 	}
