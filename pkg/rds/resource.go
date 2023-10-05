@@ -41,7 +41,6 @@ func (c *RdsClient) CreateRdsResourceStack(
 	ec2Tags := ec2.CreateEc2Tags(resourceConfig.Name, resourceConfig.Tags)
 
 	// Security Group
-	var securityGroupId string
 	if inventory != nil && inventory.SecurityGroupId == "" {
 		sgId, err := c.CreateSecurityGroup(
 			ec2Tags,
@@ -52,7 +51,6 @@ func (c *RdsClient) CreateRdsResourceStack(
 			resourceConfig.AwsAccount,
 		)
 		if sgId != "" {
-			securityGroupId = sgId
 			inventory.SecurityGroupId = sgId
 			inventory.send(c.InventoryChan)
 		}
@@ -61,12 +59,10 @@ func (c *RdsClient) CreateRdsResourceStack(
 		}
 		c.SendMessage(fmt.Sprintf("security group with ID %s created\n", sgId))
 	} else {
-		securityGroupId = inventory.SecurityGroupId
 		c.SendMessage(fmt.Sprintf("security group with ID %s found in inventory\n", inventory.SecurityGroupId))
 	}
 
 	// Subnet Group
-	var subnetGroupName string
 	if inventory != nil && inventory.SubnetGroupName == "" {
 		subnetGroup, err := c.CreateSubnetGroup(
 			rdsTags,
@@ -74,7 +70,6 @@ func (c *RdsClient) CreateRdsResourceStack(
 			resourceConfig.SubnetIds,
 		)
 		if subnetGroup != nil {
-			subnetGroupName = *subnetGroup.DBSubnetGroupName
 			inventory.SubnetGroupName = *subnetGroup.DBSubnetGroupName
 			inventory.send(c.InventoryChan)
 		}
@@ -83,12 +78,10 @@ func (c *RdsClient) CreateRdsResourceStack(
 		}
 		c.SendMessage(fmt.Sprintf("subnet group %s created\n", *subnetGroup.DBSubnetGroupName))
 	} else {
-		subnetGroupName = inventory.SubnetGroupName
 		c.SendMessage(fmt.Sprintf("subnet group %s found in inventory\n", inventory.SubnetGroupName))
 	}
 
 	// RDS Instance
-	var rdsInstanceId string
 	if inventory != nil && inventory.RdsInstanceId == "" {
 		rdsInstance, err := c.CreateRdsInstance(
 			rdsTags,
@@ -101,11 +94,10 @@ func (c *RdsClient) CreateRdsResourceStack(
 			resourceConfig.BackupDays,
 			resourceConfig.DbUser,
 			resourceConfig.DbUserPassword,
-			securityGroupId,
-			subnetGroupName,
+			inventory.SecurityGroupId,
+			inventory.SubnetGroupName,
 		)
 		if rdsInstance != nil {
-			rdsInstanceId = *rdsInstance.DBInstanceIdentifier
 			inventory.RdsInstanceId = *rdsInstance.DBInstanceIdentifier
 			inventory.send(c.InventoryChan)
 		}
@@ -114,14 +106,13 @@ func (c *RdsClient) CreateRdsResourceStack(
 		}
 		c.SendMessage(fmt.Sprintf("RDS instance %s created\n", *rdsInstance.DBInstanceIdentifier))
 	} else {
-		rdsInstanceId = inventory.RdsInstanceId
 		c.SendMessage(fmt.Sprintf("RDS instance %s found in inventory\n", inventory.RdsInstanceId))
 	}
 
 	// RDS Instance Endpoint
 	if inventory != nil && inventory.RdsInstanceEndpoint == "" {
-		c.SendMessage(fmt.Sprintf("waiting for RDS instance %s to become available\n", rdsInstanceId))
-		endpoint, err := c.WaitForRdsInstance(rdsInstanceId, RdsConditionCreated)
+		c.SendMessage(fmt.Sprintf("waiting for RDS instance %s to become available\n", inventory.RdsInstanceId))
+		endpoint, err := c.WaitForRdsInstance(inventory.RdsInstanceId, RdsConditionCreated)
 		fmt.Println(c.InventoryChan)
 		if endpoint != "" && c.InventoryChan != nil {
 			inventory.RdsInstanceEndpoint = endpoint
@@ -130,7 +121,7 @@ func (c *RdsClient) CreateRdsResourceStack(
 		if err != nil {
 			return err
 		}
-		c.SendMessage(fmt.Sprintf("RDS instance %s is available\n", rdsInstanceId))
+		c.SendMessage(fmt.Sprintf("RDS instance %s is available\n", inventory.RdsInstanceId))
 	}
 
 	return nil
