@@ -1,16 +1,20 @@
 package rds
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go"
 )
 
 // CreateSecurityGroup creates a security group for the RDS instance and adds an
 // ingress and egress rule that allows connections from workloads in the VPC
 // where the runtime is deployed.  The sourceSecurityGroupId argument provided
-// must be for the VPC where the workloads are running.
+// must be for the VPC where the workloads are running.  If a security group
+// with matching name and tags already exists, that security group ID will be
+// returned and used in the resource stack to ensure idempotency.
 func (c *RdsClient) CreateSecurityGroup(
 	tags *[]types.Tag,
 	instanceName string,
@@ -36,7 +40,22 @@ func (c *RdsClient) CreateSecurityGroup(
 		},
 	}
 	createSgResp, err := svc.CreateSecurityGroup(c.Context, &createSecurityGroupInput)
-	if err != nil {
+	switch err {
+	case nil:
+		break
+	default:
+		var apiErr *smithy.GenericAPIError
+		if ok := errors.As(err, &apiErr); ok {
+			if apiErr.Code == "InvalidGroup.Duplicate" {
+				sgId, uniqueTagsExist, err := c.checkSecurityGroupUniqueTags(groupName, tags)
+				if err != nil {
+					return "", fmt.Errorf("failed to check for unique tags on security group with name %s: %w", groupName, err)
+				}
+				if uniqueTagsExist {
+					return sgId, nil
+				}
+			}
+		}
 		return "", fmt.Errorf("failed to create security group for RDS instance %s: %w", instanceName, err)
 	}
 
@@ -57,12 +76,8 @@ func (c *RdsClient) CreateSecurityGroup(
 		},
 	}
 	authIngressInput := ec2.AuthorizeSecurityGroupIngressInput{
-		GroupId: createSgResp.GroupId,
-		//FromPort:              &port,
-		//ToPort:                &port,
-		//IpProtocol:            &protocol,
+		GroupId:       createSgResp.GroupId,
 		IpPermissions: []types.IpPermission{ingressIpPermission},
-		//SourceSecurityGroupId: &sourceSecurityGroupId,
 		TagSpecifications: []types.TagSpecification{
 			{
 				ResourceType: types.ResourceTypeSecurityGroupRule,
@@ -118,4 +133,49 @@ func (c *RdsClient) DeleteSecurityGroup(securityGroupId string) error {
 	}
 
 	return nil
+}
+
+// checkSecurityGroupUniqueTags checsk to see if a security group with a
+// matching name and tags already exists.
+func (c *RdsClient) checkSecurityGroupUniqueTags(
+	groupName string,
+	tags *[]types.Tag,
+) (string, bool, error) {
+	// add security group name to filters
+	nameFilter := "group-name"
+	filters := []types.Filter{
+		{
+			Name:   &nameFilter,
+			Values: []string{groupName},
+		},
+	}
+
+	// add tags to filters
+	for _, tag := range *tags {
+		tagFilter := fmt.Sprintf("tag:%s", *tag.Key)
+		filter := types.Filter{
+			Name:   &tagFilter,
+			Values: []string{*tag.Value},
+		}
+		filters = append(filters, filter)
+	}
+
+	svc := ec2.NewFromConfig(*c.AwsConfig)
+
+	describeSecurityGroupInput := ec2.DescribeSecurityGroupsInput{
+		Filters: filters,
+	}
+	resp, err := svc.DescribeSecurityGroups(c.Context, &describeSecurityGroupInput)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to describe security group to check for unique tags: %w", err)
+	}
+
+	switch len(resp.SecurityGroups) {
+	case 1:
+		return *resp.SecurityGroups[0].GroupId, true, nil
+	case 0:
+		return "", false, nil
+	default:
+		return "", false, fmt.Errorf("found multiple security groups with matching name and tags: %w", err)
+	}
 }
