@@ -113,7 +113,6 @@ func (c *RdsClient) CreateRdsResourceStack(
 	if inventory != nil && inventory.RdsInstanceEndpoint == "" {
 		c.SendMessage(fmt.Sprintf("waiting for RDS instance %s to become available\n", inventory.RdsInstanceId))
 		endpoint, err := c.WaitForRdsInstance(inventory.RdsInstanceId, RdsConditionCreated)
-		fmt.Println(c.InventoryChan)
 		if endpoint != "" && c.InventoryChan != nil {
 			inventory.RdsInstanceEndpoint = endpoint
 			inventory.send(c.InventoryChan)
