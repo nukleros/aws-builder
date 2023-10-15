@@ -1,0 +1,95 @@
+{
+  "region": "us-east-1",
+  "availabilityZones": [
+    {
+      "zone": "us-east-1a",
+      "publicSubnets": [
+        {
+          "subnetId": "subnet-04c11eb619d2cd87e",
+          "subnetCidr": "10.0.0.0/22"
+        }
+      ],
+      "privateSubnets": [
+        {
+          "subnetId": "subnet-0f9b196bcb39068c9",
+          "subnetCidr": "10.0.4.0/22"
+        }
+      ],
+      "natGatewayId": "nat-0745dcd9eda228069"
+    },
+    {
+      "zone": "us-east-1b",
+      "publicSubnets": [
+        {
+          "subnetId": "subnet-0e621ac8a890afe52",
+          "subnetCidr": "10.0.8.0/22"
+        }
+      ],
+      "privateSubnets": [
+        {
+          "subnetId": "subnet-00074b3844dfeed30",
+          "subnetCidr": "10.0.12.0/22"
+        }
+      ],
+      "natGatewayId": "nat-0bb02e9d9dd9654f7"
+    }
+  ],
+  "vpcId": "vpc-050bb45e22759d4d1",
+  "internetGatewayId": "igw-05094720306d89723",
+  "elasticIpIds": [
+    "eipalloc-0ec49ed46b5bb8f80",
+    "eipalloc-09565f4cc471b6a71"
+  ],
+  "publicRouteTableId": "rtb-00cdad23ca0235d0f",
+  "privateRouteTableIds": [
+    "rtb-000752c96f21ebaff",
+    "rtb-0189952720041c452"
+  ],
+  "clusterRole": {
+    "roleName": "cluster-role-sample-cluster-0",
+    "roleArn": "arn:aws:iam::575822346426:role/cluster-role-sample-cluster-0",
+    "rolePolicyArns": [
+      "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+    ]
+  },
+  "workerRole": {
+    "roleName": "worker-role-sample-cluster-0",
+    "roleArn": "arn:aws:iam::575822346426:role/worker-role-sample-cluster-0",
+    "rolePolicyArns": [
+      "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
+      "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
+      "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+    ]
+  },
+  "dnsManagementRole": {
+    "roleName": "",
+    "roleArn": "",
+    "rolePolicyArns": null
+  },
+  "dns01ChallengeRole": {
+    "roleName": "",
+    "roleArn": "",
+    "rolePolicyArns": null
+  },
+  "clusterAutoscalingRole": {
+    "roleName": "",
+    "roleArn": "",
+    "rolePolicyArns": null
+  },
+  "storageManagementRole": {
+    "roleName": "",
+    "roleArn": "",
+    "rolePolicyArns": null
+  },
+  "policyArns": null,
+  "cluster": {
+    "clusterName": "sample-cluster-0",
+    "clusterArn": "arn:aws:eks:us-east-1:575822346426:cluster/sample-cluster-0",
+    "oidcProviderUrl": "https://oidc.eks.us-east-1.amazonaws.com/id/99F668E83E884ABC5D077AFC6AFAA617"
+  },
+  "nodeGroupNames": [
+    "sample-cluster-0-private-node-group"
+  ],
+  "oidcProviderArn": "arn:aws:iam::575822346426:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/99F668E83E884ABC5D077AFC6AFAA617",
+  "securityGroupId": "sg-023cd08a1e6f27802"
+}

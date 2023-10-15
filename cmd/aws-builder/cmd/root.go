@@ -46,7 +46,7 @@ func init() {
 		"The AWS config profile to draw credentials from when provisioning resources")
 	rootCmd.PersistentFlags().StringVarP(&awsRegion, "aws-region", "r", "",
 		"AWS region to create resources in - if defined will override region in config profile")
-	rootCmd.PersistentFlags().StringVarP(&awsRoleArn, "aws-role-arn", "r", "",
+	rootCmd.PersistentFlags().StringVarP(&awsRoleArn, "aws-role-arn", "a", "",
 		"The AWS role ARN to assume when provisioning resources")
 	rootCmd.PersistentFlags().StringVarP(&awsSerialNumber, "aws-serial-number", "s", "",
 		"The AWS serial number to use when authenticating via MFA")

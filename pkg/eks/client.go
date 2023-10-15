@@ -1,4 +1,4 @@
-package rds
+package eks
 
 import (
 	"context"
@@ -8,23 +8,23 @@ import (
 	"github.com/nukleros/aws-builder/pkg/client"
 )
 
-// RdsClient is used to manage operations on RDS instances.
-type RdsClient struct {
+// EksClient is used to manage operations on EKS clusters.
+type EksClient struct {
 	client.ResourceClient
 
 	// A channel for latest version of resource inventory to be passed to client
 	// as resources are created and deleted.
-	InventoryChan *chan RdsInventory
+	InventoryChan *chan EksInventory
 }
 
-func (c *RdsClient) GetMessageChan() *chan string {
+func (c *EksClient) GetMessageChan() *chan string {
 	return c.MessageChan
 }
 
-func (c *RdsClient) GetContext() context.Context {
+func (c *EksClient) GetContext() context.Context {
 	return c.Context
 }
 
-func (c *RdsClient) GetAwsConfig() *aws.Config {
+func (c *EksClient) GetAwsConfig() *aws.Config {
 	return c.AwsConfig
 }

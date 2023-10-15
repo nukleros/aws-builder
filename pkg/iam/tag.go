@@ -1,25 +1,25 @@
 package iam
 
-import (
-	"github.com/aws/aws-sdk-go-v2/service/iam/types"
-)
+import "github.com/aws/aws-sdk-go-v2/service/iam/types"
 
 // CreateIamTags creates tags for IAM resources.
-func CreateIamTags(name string, tags map[string]string) *[]types.Tag {
+func CreateIamTags(name string, customTags map[string]string) *[]types.Tag {
 	nameKey := "Name"
-	ec2Tags := []types.Tag{
+	tags := []types.Tag{
 		{
 			Key:   &nameKey,
 			Value: &name,
 		},
 	}
-	for k, v := range tags {
+	for k, v := range customTags {
+		key := k
+		val := v
 		t := types.Tag{
-			Key:   &k,
-			Value: &v,
+			Key:   &key,
+			Value: &val,
 		}
-		ec2Tags = append(ec2Tags, t)
+		tags = append(tags, t)
 	}
 
-	return &ec2Tags
+	return &tags
 }
