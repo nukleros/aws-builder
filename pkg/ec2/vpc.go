@@ -62,7 +62,7 @@ func CheckDnsResolutionForVpc(
 	}
 	resp, err := svc.DescribeVpcAttribute(client.GetContext(), &describeAttributeInput)
 	if err != nil {
-		return false, fmt.Errorf("failed to describe VPC attribute: %w")
+		return false, fmt.Errorf("failed to describe VPC attribute: %w", err)
 	}
 
 	if resp.EnableDnsSupport != nil && *resp.EnableDnsSupport.Value {
@@ -86,7 +86,7 @@ func CheckDnsHostnamesForVpc(
 	}
 	resp, err := svc.DescribeVpcAttribute(client.GetContext(), &describeAttributeInput)
 	if err != nil {
-		return false, fmt.Errorf("failed to describe VPC attribute: %w")
+		return false, fmt.Errorf("failed to describe VPC attribute: %w", err)
 	}
 
 	if resp.EnableDnsHostnames != nil && *resp.EnableDnsHostnames.Value {

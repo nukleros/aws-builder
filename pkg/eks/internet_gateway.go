@@ -61,8 +61,8 @@ func (c *EksClient) CreateInternetGateway(
 			}
 		}
 		return nil, fmt.Errorf(
-			"failed to attach internet gateway with ID %s to VPC with ID %s: %w",
-			createdIgw.InternetGatewayId, vpcId, err)
+			"failed to attach internet gateway with ID %s to VPC with ID %s",
+			*createdIgw.InternetGatewayId, vpcId)
 	}
 
 	return &createdIgw, nil
