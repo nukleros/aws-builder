@@ -27,15 +27,25 @@ func (c *EksClient) CreatePublicSubnets(
 	modifiedAzInventory := *azInventory
 	var publicSubnetIds []string
 
-	// add ELB tag
+	// the following tags are used by the Kubernetes controller that integrates
+	// with AWS
+	subnetTags := *tags
 	elbTagKey := "kubernetes.io/role/elb"
 	elbTagValue := "1"
-	subnetTags := *tags
 	elbTag := types.Tag{
 		Key:   &elbTagKey,
 		Value: &elbTagValue,
 	}
 	subnetTags = append(subnetTags, elbTag)
+
+	clusterNameSharedTagKey := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
+	clusterNameSharedTagValue := "shared"
+	clusterNameSharedTag := types.Tag{
+		Key:   &clusterNameSharedTagKey,
+		Value: &clusterNameSharedTagValue,
+	}
+	subnetTags = append(subnetTags, clusterNameSharedTag)
+
 	for azIdx, az := range modifiedAzInventory {
 		for subnetIdx, subnet := range az.PublicSubnets {
 			// because subnets don't have unique names we have to check for
@@ -100,15 +110,25 @@ func (c *EksClient) CreatePrivateSubnets(
 	modifiedAzInventory := *azInventory
 	var privateSubnetIds []string
 
-	// add internal ELB tag
+	// the following tags are used by the Kubernetes controller that integrates
+	// with AWS
+	subnetTags := *tags
 	internalElbTagKey := "kubernetes.io/role/internal-elb"
 	internalElbTagValue := "1"
-	subnetTags := *tags
 	internalElbTag := types.Tag{
 		Key:   &internalElbTagKey,
 		Value: &internalElbTagValue,
 	}
 	subnetTags = append(subnetTags, internalElbTag)
+
+	clusterNameSharedTagKey := fmt.Sprintf("kubernetes.io/cluster/%s", clusterName)
+	clusterNameSharedTagValue := "shared"
+	clusterNameSharedTag := types.Tag{
+		Key:   &clusterNameSharedTagKey,
+		Value: &clusterNameSharedTagValue,
+	}
+	subnetTags = append(subnetTags, clusterNameSharedTag)
+
 	for azIdx, az := range modifiedAzInventory {
 		for subnetIdx, subnet := range az.PrivateSubnets {
 			// because subnets don't have unique names we have to check for a

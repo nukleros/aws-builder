@@ -54,6 +54,8 @@ func (c *EksClient) CreateVpc(
 
 	vpcTags := *tags
 
+	// the following tags are used by the Kubernetes controller that integrates
+	// with AWS
 	clusterNameTagKey := "kubernetes.io/cluster/cluster-name"
 	clusterNameTagValue := clusterName
 	clusterNameTag := types.Tag{
