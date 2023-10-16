@@ -25,6 +25,7 @@ type EksInventory struct {
 	StorageManagementRole  RoleInventory               `json:"storageManagementRole"`
 	PolicyArns             []string                    `json:"policyArns"`
 	Cluster                ClusterInventory            `json:"cluster"`
+	ClusterAddon           bool                        `json:"clusterAddon"`
 	NodeGroupNames         []string                    `json:"nodeGroupNames"`
 	OidcProviderArn        string                      `json:"oidcProviderArn"`
 	SecurityGroupId        string                      `json:"securityGroupId"`

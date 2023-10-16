@@ -619,6 +619,8 @@ func (c *EksClient) CreateEksResourceStack(
 	if err != nil {
 		return err
 	}
+	inventory.ClusterAddon = true
+	inventory.send(c.InventoryChan)
 	c.SendMessage(fmt.Sprintf("EBS storage addon created: %s", ebsStorageAddonName))
 
 	c.SendMessage(fmt.Sprintf("EKS cluster creation complete: %s", inventory.Cluster.ClusterName))
