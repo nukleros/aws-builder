@@ -49,7 +49,7 @@ type ServiceAccountConfig struct {
 	Namespace string `yaml:"namespace"`
 }
 
-// LoadEksConfig loads an RDS config from a config file and returns the
+// LoadEksConfig loads an EKS config from a config file and returns the
 // EksConfig object.
 func LoadEksConfig(configFile string) (*EksConfig, error) {
 	configYaml, err := ioutil.ReadFile(configFile)
@@ -62,4 +62,16 @@ func LoadEksConfig(configFile string) (*EksConfig, error) {
 	}
 
 	return &eksConfig, nil
+}
+
+// NewEksConfig returns an EksConfig with default values set.
+func NewEksConfig() *EksConfig {
+	return &EksConfig{
+		Name:              "default-eks-cluster",
+		KubernetesVersion: DefaultKubernetesVersion,
+		ClusterCIDR:       "10.0.0.0/16",
+		InstanceTypes:     []string{"t3.micro"},
+		MinNodes:          int32(2),
+		MaxNodes:          int32(4),
+	}
 }
