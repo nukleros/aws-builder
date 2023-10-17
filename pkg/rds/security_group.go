@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	aws_ec2 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/smithy-go"
+
+	"github.com/nukleros/aws-builder/pkg/ec2"
 )
 
 // CreateSecurityGroup creates a security group for the RDS instance and adds an
@@ -23,12 +25,12 @@ func (c *RdsClient) CreateSecurityGroup(
 	sourceSecurityGroupId string,
 	awsAccount string,
 ) (string, error) {
-	svc := ec2.NewFromConfig(*c.AwsConfig)
+	svc := aws_ec2.NewFromConfig(*c.AwsConfig)
 
 	// create security group
 	description := fmt.Sprintf("security group for RDS instance %s", instanceName)
 	groupName := fmt.Sprintf("%s-rds-sg", instanceName)
-	createSecurityGroupInput := ec2.CreateSecurityGroupInput{
+	createSecurityGroupInput := aws_ec2.CreateSecurityGroupInput{
 		Description: &description,
 		GroupName:   &groupName,
 		VpcId:       &vpcId,
@@ -40,14 +42,13 @@ func (c *RdsClient) CreateSecurityGroup(
 		},
 	}
 	createSgResp, err := svc.CreateSecurityGroup(c.Context, &createSecurityGroupInput)
-	switch err {
-	case nil:
-		break
-	default:
+	if err != nil {
+		// if a security group with matching name and tags already exists,
+		// return that security group ID
 		var apiErr *smithy.GenericAPIError
 		if ok := errors.As(err, &apiErr); ok {
 			if apiErr.Code == "InvalidGroup.Duplicate" {
-				sgId, uniqueTagsExist, err := c.checkSecurityGroupUniqueTags(groupName, tags)
+				sgId, uniqueTagsExist, err := ec2.CheckUniqueTagsForSecurityGroup(c, groupName, tags)
 				if err != nil {
 					return "", fmt.Errorf("failed to check for unique tags on security group with name %s: %w", groupName, err)
 				}
@@ -75,7 +76,7 @@ func (c *RdsClient) CreateSecurityGroup(
 			},
 		},
 	}
-	authIngressInput := ec2.AuthorizeSecurityGroupIngressInput{
+	authIngressInput := aws_ec2.AuthorizeSecurityGroupIngressInput{
 		GroupId:       createSgResp.GroupId,
 		IpPermissions: []types.IpPermission{ingressIpPermission},
 		TagSpecifications: []types.TagSpecification{
@@ -97,7 +98,7 @@ func (c *RdsClient) CreateSecurityGroup(
 		ToPort:     &egressPort,
 		IpProtocol: &protocol,
 	}
-	authEgressInput := ec2.AuthorizeSecurityGroupEgressInput{
+	authEgressInput := aws_ec2.AuthorizeSecurityGroupEgressInput{
 		GroupId:       createSgResp.GroupId,
 		IpPermissions: []types.IpPermission{egressIpPermission},
 		TagSpecifications: []types.TagSpecification{
@@ -122,9 +123,9 @@ func (c *RdsClient) DeleteSecurityGroup(securityGroupId string) error {
 		return nil
 	}
 
-	svc := ec2.NewFromConfig(*c.AwsConfig)
+	svc := aws_ec2.NewFromConfig(*c.AwsConfig)
 
-	deleteSecurityGroupInput := ec2.DeleteSecurityGroupInput{
+	deleteSecurityGroupInput := aws_ec2.DeleteSecurityGroupInput{
 		GroupId: &securityGroupId,
 	}
 	_, err := svc.DeleteSecurityGroup(c.Context, &deleteSecurityGroupInput)
@@ -133,49 +134,4 @@ func (c *RdsClient) DeleteSecurityGroup(securityGroupId string) error {
 	}
 
 	return nil
-}
-
-// checkSecurityGroupUniqueTags checsk to see if a security group with a
-// matching name and tags already exists.
-func (c *RdsClient) checkSecurityGroupUniqueTags(
-	groupName string,
-	tags *[]types.Tag,
-) (string, bool, error) {
-	// add security group name to filters
-	nameFilter := "group-name"
-	filters := []types.Filter{
-		{
-			Name:   &nameFilter,
-			Values: []string{groupName},
-		},
-	}
-
-	// add tags to filters
-	for _, tag := range *tags {
-		tagFilter := fmt.Sprintf("tag:%s", *tag.Key)
-		filter := types.Filter{
-			Name:   &tagFilter,
-			Values: []string{*tag.Value},
-		}
-		filters = append(filters, filter)
-	}
-
-	svc := ec2.NewFromConfig(*c.AwsConfig)
-
-	describeSecurityGroupInput := ec2.DescribeSecurityGroupsInput{
-		Filters: filters,
-	}
-	resp, err := svc.DescribeSecurityGroups(c.Context, &describeSecurityGroupInput)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to describe security group to check for unique tags: %w", err)
-	}
-
-	switch len(resp.SecurityGroups) {
-	case 1:
-		return *resp.SecurityGroups[0].GroupId, true, nil
-	case 0:
-		return "", false, nil
-	default:
-		return "", false, fmt.Errorf("found multiple security groups with matching name and tags: %w", err)
-	}
 }

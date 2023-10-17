@@ -6,6 +6,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
+type Client interface {
+	GetMessageChan() *chan string
+	GetContext() context.Context
+	GetAwsConfig() *aws.Config
+}
+
 // ResourceClient contains the elements needed to manage resources.
 type ResourceClient struct {
 	// A channel for messages to be passed to client as resources are created

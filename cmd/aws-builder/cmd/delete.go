@@ -13,6 +13,7 @@ import (
 
 	"github.com/nukleros/aws-builder/pkg/client"
 	"github.com/nukleros/aws-builder/pkg/config"
+	"github.com/nukleros/aws-builder/pkg/eks"
 	"github.com/nukleros/aws-builder/pkg/rds"
 	"github.com/nukleros/aws-builder/pkg/s3"
 )
@@ -55,6 +56,24 @@ var deleteCmd = &cobra.Command{
 
 		// call requested resource stack deletion
 		switch args[0] {
+		case "eks":
+			// create client and config for resource deletion
+			invChan := make(chan eks.EksInventory)
+			eksClient, eksInventory, err := eks.InitDelete(
+				resourceClient,
+				args[1],
+				&invChan,
+				&deleteWait,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to initialize EKS resource client and inventory: %w", err)
+			}
+
+			// delete resources
+			if err := eksClient.DeleteEksResourceStack(eksInventory); err != nil {
+				return fmt.Errorf("failed to remove EKS resource stack: %w", err)
+			}
+			close(invChan)
 		case "rds":
 			// create client and config for resource deletion
 			invChan := make(chan rds.RdsInventory)

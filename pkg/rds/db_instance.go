@@ -7,6 +7,7 @@ import (
 
 	aws_rds "github.com/aws/aws-sdk-go-v2/service/rds"
 	"github.com/aws/aws-sdk-go-v2/service/rds/types"
+	"github.com/nukleros/aws-builder/pkg/util"
 )
 
 type RdsCondition string
@@ -64,6 +65,8 @@ func (c *RdsClient) CreateRdsInstance(
 	}
 	rdsResp, err := svc.CreateDBInstance(c.Context, &createRdsInput)
 	if err != nil {
+		// if an RDS instance with matching name and tags already exists,
+		// return that instance
 		var alreadyExists *types.DBInstanceAlreadyExistsFault
 		if errors.As(err, &alreadyExists) {
 			dbInstance, uniqueTagsExist, err := c.checkRdsInstanceUniqueTags(instanceName, tags)
@@ -125,7 +128,7 @@ func (c *RdsClient) WaitForRdsInstance(
 
 		rdsInstance, err := c.getRdsInstance(rdsInstanceId)
 		if err != nil {
-			if errors.Is(err, ErrResourceNotFound) && rdsCondition == RdsConditionDeleted {
+			if errors.Is(err, util.ErrResourceNotFound) && rdsCondition == RdsConditionDeleted {
 				// RDS instance was not found and we're waiting for deletion so
 				// condition is met
 				break
@@ -158,7 +161,7 @@ func (c *RdsClient) getRdsInstance(rdsInstanceId string) (*types.DBInstance, err
 	if err != nil {
 		var notFoundErr *types.DBInstanceNotFoundFault
 		if errors.As(err, &notFoundErr) {
-			return nil, ErrResourceNotFound
+			return nil, util.ErrResourceNotFound
 		} else {
 			return nil, fmt.Errorf("failed to describe RDS instance with identifier %s: %w", rdsInstanceId, err)
 		}

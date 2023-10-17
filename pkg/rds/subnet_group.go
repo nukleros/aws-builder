@@ -30,6 +30,8 @@ func (c *RdsClient) CreateSubnetGroup(
 	}
 	subnetGroupResp, err := svc.CreateDBSubnetGroup(c.Context, &createSubnetGroupInput)
 	if err != nil {
+		// if a subnet group with matching name and tags already exists,
+		// return that subnet group
 		var alreadyExists *types.DBSubnetGroupAlreadyExistsFault
 		if errors.As(err, &alreadyExists) {
 			subnetGroup, uniqueTagsExist, err := c.checkSubnetGroupUniqueTags(subnetGroupName, tags)

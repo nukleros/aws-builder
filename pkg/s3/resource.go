@@ -1,14 +1,11 @@
 package s3
 
 import (
-	"errors"
 	"fmt"
 
-	"github.com/nukleros/aws-builder/internal/util"
 	"github.com/nukleros/aws-builder/pkg/iam"
+	"github.com/nukleros/aws-builder/pkg/util"
 )
-
-var ErrResourceNotFound = errors.New("resource not found")
 
 // CreateResourceStack creates all the resources for an RDS instance.
 func (c *S3Client) CreateS3ResourceStack(resourceConfig *S3Config) error {

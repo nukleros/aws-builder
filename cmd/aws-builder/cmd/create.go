@@ -12,6 +12,7 @@ import (
 
 	"github.com/nukleros/aws-builder/pkg/client"
 	"github.com/nukleros/aws-builder/pkg/config"
+	"github.com/nukleros/aws-builder/pkg/eks"
 	"github.com/nukleros/aws-builder/pkg/rds"
 	"github.com/nukleros/aws-builder/pkg/s3"
 )
@@ -64,6 +65,33 @@ var createCmd = &cobra.Command{
 
 		// call requested resource stack creation
 		switch args[0] {
+		case "eks":
+			// create client and config for resource creation
+			invChan := make(chan eks.EksInventory)
+			eksClient, eksConfig, err := eks.InitCreate(
+				resourceClient,
+				args[1],
+				createInventoryFile,
+				&invChan,
+				&createWait,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to initialize EKS resource client and config: %w", err)
+			}
+
+			// load input inventory if provided
+			var eksInventory eks.EksInventory
+			if inputInventoryFile != "" {
+				if err := eksInventory.Load(inputInventoryFile); err != nil {
+					return fmt.Errorf("failed to load input inventory: %w", err)
+				}
+			}
+
+			// create resources
+			if err := eksClient.CreateEksResourceStack(eksConfig, &eksInventory); err != nil {
+				return fmt.Errorf("failed to create EKS resource stack: %w", err)
+			}
+			close(invChan)
 		case "rds":
 			// create client and config for resource creation
 			invChan := make(chan rds.RdsInventory)
