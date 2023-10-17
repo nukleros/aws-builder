@@ -69,7 +69,7 @@ func NewEksConfig() *EksConfig {
 	return &EksConfig{
 		Name:              "default-eks-cluster",
 		KubernetesVersion: DefaultKubernetesVersion,
-		ClusterCIDR:       "10.0.0.0/16",
+		ClusterCidr:       "10.0.0.0/16",
 		InstanceTypes:     []string{"t3.micro"},
 		MinNodes:          int32(2),
 		MaxNodes:          int32(4),
