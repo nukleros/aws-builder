@@ -28,7 +28,7 @@ func (c *EksClient) CreateClusterRole(
 	svc := iam.NewFromConfig(*c.AwsConfig)
 
 	clusterRoleName := fmt.Sprintf("%s-%s", ClusterRoleName, clusterName)
-	if err := checkRoleName(clusterRoleName); err != nil {
+	if err := CheckRoleName(clusterRoleName); err != nil {
 		return nil, err
 	}
 	clusterPolicyArn := ClusterPolicyArn
@@ -113,7 +113,7 @@ func (c *EksClient) CreateNodeRole(
 	svc := iam.NewFromConfig(*c.AwsConfig)
 
 	workerRoleName := fmt.Sprintf("%s-%s", WorkerRoleName, clusterName)
-	if err := checkRoleName(workerRoleName); err != nil {
+	if err := CheckRoleName(workerRoleName); err != nil {
 		return nil, err
 	}
 	workerRolePolicyDocument := `{
@@ -217,7 +217,7 @@ func (c *EksClient) CreateDnsManagementRole(
 	oidcProviderBare := strings.Trim(oidcProvider, "https://")
 	dnsManagementRoleName := fmt.Sprintf("%s-%s", DnsManagementRoleName, clusterName)
 	dnsManagementRolePath := fmt.Sprintf("/%s/", clusterName)
-	if err := checkRoleName(dnsManagementRoleName); err != nil {
+	if err := CheckRoleName(dnsManagementRoleName); err != nil {
 		return nil, err
 	}
 	dnsManagementRolePolicyDocument := fmt.Sprintf(`{
@@ -313,7 +313,7 @@ func (c *EksClient) CreateDns01ChallengeRole(
 
 	oidcProviderBare := strings.Trim(oidcProvider, "https://")
 	dns01ChallengeRoleName := fmt.Sprintf("%s-%s", Dns01ChallengeRoleName, clusterName)
-	if err := checkRoleName(dns01ChallengeRoleName); err != nil {
+	if err := CheckRoleName(dns01ChallengeRoleName); err != nil {
 		return nil, err
 	}
 	dns01ChallengeRolePolicyDocument := fmt.Sprintf(`{
@@ -408,7 +408,7 @@ func (c *EksClient) CreateClusterAutoscalingRole(
 
 	oidcProviderBare := strings.Trim(oidcProvider, "https://")
 	clusterAutoscalingRoleName := fmt.Sprintf("%s-%s", ClusterAutoscalingRoleName, clusterName)
-	if err := checkRoleName(clusterAutoscalingRoleName); err != nil {
+	if err := CheckRoleName(clusterAutoscalingRoleName); err != nil {
 		return nil, err
 	}
 	clusterAutoscalingRolePolicyDocument := fmt.Sprintf(`{
@@ -502,7 +502,7 @@ func (c *EksClient) CreateStorageManagementRole(
 
 	oidcProviderBare := strings.Trim(oidcProvider, "https://")
 	storageManagementRoleName := fmt.Sprintf("%s-%s", StorageManagementRoleName, clusterName)
-	if err := checkRoleName(storageManagementRoleName); err != nil {
+	if err := CheckRoleName(storageManagementRoleName); err != nil {
 		return nil, err
 	}
 	storagePolicyArn := CsiDriverPolicyArn
@@ -656,9 +656,9 @@ func getWorkerPolicyArns() []string {
 	}
 }
 
-// checkRoleName ensures role names do not exceed the AWS limit for role name
+// CheckRoleName ensures role names do not exceed the AWS limit for role name
 // lengths (64 characters).
-func checkRoleName(name string) error {
+func CheckRoleName(name string) error {
 	if utf8.RuneCountInString(name) > 64 {
 		return errors.New(fmt.Sprintf(
 			"role name %s too long, must be 64 characters or less", name,
