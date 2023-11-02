@@ -15,31 +15,32 @@ func (c *EksClient) CreateEksResourceStack(
 	resourceConfig *EksConfig,
 	inventory *EksInventory,
 ) error {
-	// create an empty inventory object to refer to if nil
-	if inventory == nil {
-		inventory = &EksInventory{}
+	// resource config region takes precedence
+	// if not set, use the region defined in AWS config
+	if resourceConfig.Region != "" {
+		c.AwsConfig.Region = resourceConfig.Region
+	} else {
+		resourceConfig.Region = c.AwsConfig.Region
 	}
 
-	// return an error if resource config and inventory regions do not match
-	// inventory.Region and resourceConfig.Region can both be empty strings in
-	// which case the user's default region will be used according their local
-	// AWS config
-	if inventory.Region != "" && inventory.Region != resourceConfig.Region {
+	// if inventory not provided or if inventory region not provided, set to the
+	// configured region
+	switch {
+	case inventory == nil:
+		inventory = &EksInventory{}
+		inventory.Region = resourceConfig.Region
+	case inventory.Region == "":
+		inventory.Region = resourceConfig.Region
+	}
+
+	// return an error if client-supplied resource config and inventory regions
+	// do not match
+	if inventory.Region != resourceConfig.Region {
 		return fmt.Errorf(
 			"config region %s and inventory region %s do not match",
 			resourceConfig.Region,
 			inventory.Region,
 		)
-	}
-
-	// resource config region takes precedence
-	// if not set, use the region defined in AWS config
-	if resourceConfig.Region != "" {
-		inventory.Region = resourceConfig.Region
-		c.AwsConfig.Region = resourceConfig.Region
-	} else {
-		inventory.Region = c.AwsConfig.Region
-		resourceConfig.Region = c.AwsConfig.Region
 	}
 
 	// Tags
@@ -568,10 +569,8 @@ func (c *EksClient) CreateEksResourceStack(
 				resourceConfig.Name,
 			)
 			if clusterAutoscalingRole != nil {
-				inventory.ClusterAutoscalingRole = RoleInventory{
-					RoleName: *clusterAutoscalingRole.RoleName,
-					RoleArn:  *clusterAutoscalingRole.Arn,
-				}
+				inventory.ClusterAutoscalingRole.RoleName = *clusterAutoscalingRole.RoleName
+				inventory.ClusterAutoscalingRole.RoleArn = *clusterAutoscalingRole.Arn
 				inventory.send(c.InventoryChan)
 			}
 			if err != nil {
@@ -737,7 +736,9 @@ func (c *EksClient) DeleteEksResourceStack(inventory *EksInventory) error {
 		return err
 	}
 	c.SendMessage(fmt.Sprintf("Subnets deleted: %s", subnetIds))
-	inventory.AvailabilityZones = *updatedAzInventory
+	if updatedAzInventory != nil {
+		inventory.AvailabilityZones = *updatedAzInventory
+	}
 	inventory.send(c.InventoryChan)
 
 	// Route Tables
