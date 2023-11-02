@@ -31,7 +31,6 @@ func (c *EksClient) CreateClusterRole(
 	if err := CheckRoleName(clusterRoleName); err != nil {
 		return nil, err
 	}
-	clusterPolicyArn := ClusterPolicyArn
 	clusterRolePolicyDocument := `{
   "Version": "2012-10-17",
   "Statement": [
@@ -49,7 +48,6 @@ func (c *EksClient) CreateClusterRole(
 	createClusterRoleInput := iam.CreateRoleInput{
 		AssumeRolePolicyDocument: &clusterRolePolicyDocument,
 		RoleName:                 &clusterRoleName,
-		PermissionsBoundary:      &clusterPolicyArn,
 		Tags:                     *tags,
 	}
 	clusterRoleResp, err := svc.CreateRole(c.Context, &createClusterRoleInput)
@@ -67,7 +65,7 @@ func (c *EksClient) CreateClusterRole(
 				}
 				attachedPolicyFound := false
 				for _, policy := range listPoliciesOutput.AttachedPolicies {
-					if *policy.PolicyArn == clusterPolicyArn {
+					if *policy.PolicyArn == ClusterPolicyArn {
 						attachedPolicyFound = true
 						break
 					}
@@ -76,7 +74,7 @@ func (c *EksClient) CreateClusterRole(
 				if !attachedPolicyFound {
 					if err := c.attachPolicyToRole(
 						clusterRoleName,
-						clusterPolicyArn,
+						ClusterPolicyArn,
 					); err != nil {
 						return nil, err
 					}
@@ -97,7 +95,7 @@ func (c *EksClient) CreateClusterRole(
 	// attach policy to role
 	if err := c.attachPolicyToRole(
 		clusterRoleName,
-		clusterPolicyArn,
+		ClusterPolicyArn,
 	); err != nil {
 		return nil, err
 	}
@@ -242,7 +240,6 @@ func (c *EksClient) CreateDnsManagementRole(
 		AssumeRolePolicyDocument: &dnsManagementRolePolicyDocument,
 		RoleName:                 &dnsManagementRoleName,
 		Path:                     &dnsManagementRolePath,
-		PermissionsBoundary:      &dnsPolicyArn,
 		Tags:                     *tags,
 	}
 	dnsManagementRoleResp, err := svc.CreateRole(c.Context, &createDnsManagementRoleInput)
@@ -337,7 +334,6 @@ func (c *EksClient) CreateDns01ChallengeRole(
 	createdDns01ChallengeRoleInput := iam.CreateRoleInput{
 		AssumeRolePolicyDocument: &dns01ChallengeRolePolicyDocument,
 		RoleName:                 &dns01ChallengeRoleName,
-		PermissionsBoundary:      &dnsPolicyArn,
 		Tags:                     *tags,
 	}
 	dns01ChallengeRoleResp, err := svc.CreateRole(c.Context, &createdDns01ChallengeRoleInput)
@@ -432,7 +428,6 @@ func (c *EksClient) CreateClusterAutoscalingRole(
 	createClusterAutoscalingRoleInput := iam.CreateRoleInput{
 		AssumeRolePolicyDocument: &clusterAutoscalingRolePolicyDocument,
 		RoleName:                 &clusterAutoscalingRoleName,
-		PermissionsBoundary:      &autoscalingPolicyArn,
 		Tags:                     *tags,
 	}
 	clusterAutoscalingRoleResp, err := svc.CreateRole(c.Context, &createClusterAutoscalingRoleInput)
@@ -505,7 +500,6 @@ func (c *EksClient) CreateStorageManagementRole(
 	if err := CheckRoleName(storageManagementRoleName); err != nil {
 		return nil, err
 	}
-	storagePolicyArn := CsiDriverPolicyArn
 	storageManagementRolePolicyDocument := fmt.Sprintf(`{
     "Version": "2012-10-17",
     "Statement": [
@@ -527,7 +521,6 @@ func (c *EksClient) CreateStorageManagementRole(
 	createStorageManagementRoleInput := iam.CreateRoleInput{
 		AssumeRolePolicyDocument: &storageManagementRolePolicyDocument,
 		RoleName:                 &storageManagementRoleName,
-		PermissionsBoundary:      &storagePolicyArn,
 		Tags:                     *tags,
 	}
 	storageManagementRoleResp, err := svc.CreateRole(c.Context, &createStorageManagementRoleInput)
@@ -545,7 +538,7 @@ func (c *EksClient) CreateStorageManagementRole(
 				}
 				attachedPolicyFound := false
 				for _, policy := range listPoliciesOutput.AttachedPolicies {
-					if *policy.PolicyArn == storagePolicyArn {
+					if *policy.PolicyArn == CsiDriverPolicyArn {
 						attachedPolicyFound = true
 						break
 					}
@@ -554,7 +547,7 @@ func (c *EksClient) CreateStorageManagementRole(
 				if !attachedPolicyFound {
 					if err := c.attachPolicyToRole(
 						storageManagementRoleName,
-						storagePolicyArn,
+						CsiDriverPolicyArn,
 					); err != nil {
 						return nil, err
 					}
@@ -575,7 +568,7 @@ func (c *EksClient) CreateStorageManagementRole(
 	// attach policy to role
 	if err := c.attachPolicyToRole(
 		storageManagementRoleName,
-		storagePolicyArn,
+		CsiDriverPolicyArn,
 	); err != nil {
 		return nil, err
 	}
