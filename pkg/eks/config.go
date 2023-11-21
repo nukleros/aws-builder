@@ -7,7 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const DefaultKubernetesVersion = "1.27"
+const DefaultKubernetesVersion = "1.28"
 
 // EksConfig contains the configuration options for an EKS cluster.
 type EksConfig struct {
