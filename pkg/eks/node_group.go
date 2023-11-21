@@ -78,6 +78,11 @@ func (c *EksClient) CreateNodeGroups(
 			InstanceTypes: instanceTypes,
 			Version:       &kubernetesVersion,
 			Tags:          *tags,
+			ScalingConfig: &types.NodegroupScalingConfig{
+				DesiredSize: &initialNodes,
+				MaxSize:     &maxNodes,
+				MinSize:     &minNodes,
+			},
 		}
 	}
 	privateNodeGroupResp, err := svc.CreateNodegroup(c.Context, &createPrivateNodeGroupInput)
