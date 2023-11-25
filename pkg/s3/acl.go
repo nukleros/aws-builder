@@ -2,6 +2,7 @@ package s3
 
 import (
 	"fmt"
+	"time"
 
 	aws_s3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -35,25 +36,40 @@ func (c *S3Client) CreateAcl(
 			return fmt.Errorf("failed to apply configuration to allow public ACLs to bucket %s: %w", bucketName, err)
 		}
 
-		// add a bucket policy that grants public read access to all objects
-		policy := fmt.Sprintf(`{
-            "Version": "2012-10-17",
-            "Statement": [{
-                "Sid": "PublicReadGetObject",
-                "Effect": "Allow",
-                "Principal": "*",
-                "Action": "s3:GetObject",
-                "Resource": "arn:aws:s3:::%s/*"
-            }]
-        }`, bucketName)
+		// aws seems to need some time to let the above change propagate so
+		// we have a retry loop on this operation
+		putPolicySucceeded := false
+		putPolicyAttempts := 0
+		putPolicyMaxAttempts := 20
 
-		putBucketPolicyInput := aws_s3.PutBucketPolicyInput{
-			Bucket: &bucketName,
-			Policy: &policy,
-		}
-		_, err = svc.PutBucketPolicy(c.Context, &putBucketPolicyInput)
-		if err != nil {
-			return fmt.Errorf("failed to apply bucket policy to bucket %s: %w", bucketName, err)
+		for !putPolicySucceeded {
+			// add a bucket policy that grants public read access to all objects
+			policy := fmt.Sprintf(`{
+				"Version": "2012-10-17",
+				"Statement": [{
+					"Sid": "PublicReadGetObject",
+					"Effect": "Allow",
+					"Principal": "*",
+					"Action": "s3:GetObject",
+					"Resource": "arn:aws:s3:::%s/*"
+				}]
+			}`, bucketName)
+
+			putBucketPolicyInput := aws_s3.PutBucketPolicyInput{
+				Bucket: &bucketName,
+				Policy: &policy,
+			}
+			_, err = svc.PutBucketPolicy(c.Context, &putBucketPolicyInput)
+			if err != nil {
+				if putPolicyAttempts > putPolicyMaxAttempts {
+					return fmt.Errorf("failed to apply bucket policy to bucket %s: %w", bucketName, err)
+				}
+				putPolicyAttempts += 1
+				time.Sleep(time.Second * 2)
+				continue
+			}
+
+			putPolicySucceeded = true
 		}
 	}
 
