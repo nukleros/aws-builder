@@ -12,6 +12,7 @@ import (
 const (
 	DnsPolicyName              = "DNSUpdates"
 	Dns01ChallengePolicyName   = "DNS01Challenge"
+	SecretsManagerPolicyName   = "SecretsManager"
 	AutoscalingPolicyName      = "ClusterAutoscaler"
 	ClusterPolicyArn           = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 	WorkerNodePolicyArn        = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
@@ -163,6 +164,71 @@ func (c *EksClient) CreateDns01ChallengePolicy(
 	}
 
 	return r53PolicyResp.Policy, nil
+}
+
+// CreateSecretsManagerPolicy creates the IAM policy to be used for managing
+// secrets.
+func (c *EksClient) CreateSecretsManagerPolicy(
+	tags *[]types.Tag,
+	clusterName string,
+) (*types.Policy, error) {
+	svc := iam.NewFromConfig(*c.AwsConfig)
+
+	secretsManagerPolicyName := fmt.Sprintf("%s-%s", SecretsManagerPolicyName, clusterName)
+	secretsManagerPolicyPath := fmt.Sprintf("/%s/", clusterName)
+	secretsManagerPolicyDescription := "Allow cluster services to manage manage secrets"
+
+	secretsManagerPolicyDocument := `{
+"Version": "2012-10-17",
+"Statement": [
+{
+  "Effect": "Allow",
+  "Sid": "SecretsManagerPermissions",
+  "Action": [
+	"secretsmanager:BatchGetSecretValue",
+	"secretsmanager:ListSecrets",
+	"secretsmanager:CreateSecret",
+	"secretsmanager:DeleteSecret",
+	"secretsmanager:GetSecretValue"
+  ],
+  "Resource": [
+	"*"
+  ]
+}
+]
+}`
+	createSecretsManagerPolicyInput := iam.CreatePolicyInput{
+		PolicyName:     &secretsManagerPolicyName,
+		Path:           &secretsManagerPolicyPath,
+		Description:    &secretsManagerPolicyDescription,
+		PolicyDocument: &secretsManagerPolicyDocument,
+	}
+	secrectsManagerPolicyResp, err := svc.CreatePolicy(c.Context, &createSecretsManagerPolicyInput)
+	if err != nil {
+		var ae smithy.APIError
+		if errors.As(err, &ae) {
+			if ae.ErrorCode() == "EntityAlreadyExists" {
+				listPoliciesInput := iam.ListPoliciesInput{
+					PathPrefix: &secretsManagerPolicyPath,
+					Scope:      types.PolicyScopeTypeLocal,
+				}
+				listPoliciesOutput, err := svc.ListPolicies(c.Context, &listPoliciesInput)
+				if err != nil {
+					return nil, fmt.Errorf("failed to list policies to find existing %s policy: %w", secretsManagerPolicyName, err)
+				}
+				for _, policy := range listPoliciesOutput.Policies {
+					if *policy.PolicyName == secretsManagerPolicyName {
+						return &policy, nil
+					}
+				}
+
+				return nil, fmt.Errorf("failed to find existing policy with name %s and path %s", secretsManagerPolicyName, secretsManagerPolicyPath)
+			}
+		}
+		return nil, fmt.Errorf("failed to create DNS01 challenge policy %s: %w", secretsManagerPolicyName, err)
+	}
+
+	return secrectsManagerPolicyResp.Policy, nil
 }
 
 // CreateClusterAutoscalingPolicy creates the IAM policy to be used for cluster

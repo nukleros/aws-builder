@@ -529,6 +529,61 @@ func (c *EksClient) CreateEksResourceStack(
 		c.SendMessage("IAM role for DNS01 challenge not requested")
 	}
 
+	// IAM Policy for SecretsManager
+	if resourceConfig.SecretsManager {
+		if len(inventory.SecretsManagerRole.RolePolicyArns) == 0 {
+			secretsManagerPolicy, err := c.CreateSecretsManagerPolicy(
+				iamTags,
+				resourceConfig.Name,
+			)
+			if secretsManagerPolicy != nil {
+				inventory.PolicyArns = append(inventory.PolicyArns, *secretsManagerPolicy.Arn)
+				inventory.SecretsManagerRole = RoleInventory{
+					RolePolicyArns: []string{*secretsManagerPolicy.Arn},
+				}
+				inventory.send(c.InventoryChan)
+			}
+			if err != nil {
+				return err
+			}
+			c.SendMessage(fmt.Sprintf("IAM policy created: %s", *secretsManagerPolicy.PolicyName))
+		} else {
+			c.SendMessage(fmt.Sprintf("IAM policy found in inventory: %s", inventory.SecretsManagerRole.RolePolicyArns))
+		}
+	} else {
+		c.SendMessage("IAM policy for secrets manager not requested")
+	}
+
+	// IAM Role for SecretsManager
+	if resourceConfig.SecretsManager {
+		if inventory.SecretsManagerRole.RoleName == "" {
+			if len(inventory.SecretsManagerRole.RolePolicyArns) != 1 {
+				return fmt.Errorf("expected 1 policy for secrets manager role but found %d in inventory", len(inventory.Dns01ChallengeRole.RolePolicyArns))
+			}
+			secretsManagerRole, err := c.CreateSecretsManagerRole(
+				iamTags,
+				inventory.SecretsManagerRole.RolePolicyArns[0],
+				resourceConfig.AwsAccountId,
+				inventory.Cluster.OidcProviderUrl,
+				&resourceConfig.SecretsManagerServiceAccount,
+				resourceConfig.Name,
+			)
+			if secretsManagerRole != nil {
+				inventory.SecretsManagerRole.RoleName = *secretsManagerRole.RoleName
+				inventory.SecretsManagerRole.RoleArn = *secretsManagerRole.Arn
+				inventory.send(c.InventoryChan)
+			}
+			if err != nil {
+				return err
+			}
+			c.SendMessage(fmt.Sprintf("IAM role for secrets manager created: %s", *secretsManagerRole.RoleName))
+		} else {
+			c.SendMessage(fmt.Sprintf("IAM role for secrets manager found in inventory: %s", inventory.SecretsManagerRole.RolePolicyArns))
+		}
+	} else {
+		c.SendMessage("IAM role for secrets manager not requested")
+	}
+
 	// IAM Policy for Cluster Autoscaling
 	if resourceConfig.ClusterAutoscaling {
 		if len(inventory.ClusterAutoscalingRole.RolePolicyArns) == 0 {

@@ -21,6 +21,7 @@ type EksInventory struct {
 	WorkerRole             RoleInventory               `json:"workerRole"`
 	DnsManagementRole      RoleInventory               `json:"dnsManagementRole"`
 	Dns01ChallengeRole     RoleInventory               `json:"dns01ChallengeRole"`
+	SecretsManagerRole     RoleInventory               `json:"SecretsManagerRole"`
 	ClusterAutoscalingRole RoleInventory               `json:"clusterAutoscalingRole"`
 	StorageManagementRole  RoleInventory               `json:"storageManagementRole"`
 	PolicyArns             []string                    `json:"policyArns"`

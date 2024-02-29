@@ -16,6 +16,7 @@ const (
 	WorkerRoleName             = "worker-role"
 	DnsManagementRoleName      = "dns-mgmt-role"
 	Dns01ChallengeRoleName     = "dns-chlg-role"
+	SecretsManagerRoleName     = "secrets-manager-role"
 	ClusterAutoscalingRoleName = "ca-role"
 	StorageManagementRoleName  = "csi-role"
 )
@@ -387,6 +388,100 @@ func (c *EksClient) CreateDns01ChallengeRole(
 	}
 
 	return dns01ChallengeRoleResp.Role, nil
+}
+
+// CreateSecretsManagerRole creates the IAM role needed for secret management by
+// the Kubernetes service account of an in-cluster supporting service such as
+// external-secrets using IRSA (IAM role for service accounts).
+func (c *EksClient) CreateSecretsManagerRole(
+	tags *[]types.Tag,
+	secretsManagerPolicyArn string,
+	awsAccountId string,
+	oidcProvider string,
+	serviceAccount *ServiceAccountConfig,
+	clusterName string,
+) (*types.Role, error) {
+	svc := iam.NewFromConfig(*c.AwsConfig)
+
+	oidcProviderBare := strings.Trim(oidcProvider, "https://")
+	secretsManagerRoleName := fmt.Sprintf("%s-%s", SecretsManagerRoleName, clusterName)
+	if err := CheckRoleName(secretsManagerRoleName); err != nil {
+		return nil, err
+	}
+	secretsManagerRolePolicyDocument := fmt.Sprintf(`{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::%[1]s:oidc-provider/%[2]s"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "%[2]s:sub": "system:serviceaccount:%[3]s:%[4]s",
+                    "%[2]s:aud": "sts.amazonaws.com"
+                }
+            }
+        }
+    ]
+}`, awsAccountId, oidcProviderBare, serviceAccount.Namespace, serviceAccount.Name)
+	createdSecretsManagerRoleInput := iam.CreateRoleInput{
+		AssumeRolePolicyDocument: &secretsManagerRolePolicyDocument,
+		RoleName:                 &secretsManagerRoleName,
+		Tags:                     *tags,
+	}
+	secretsManagerRoleResp, err := svc.CreateRole(c.Context, &createdSecretsManagerRoleInput)
+	if err != nil {
+		var ae smithy.APIError
+		if errors.As(err, &ae) {
+			if ae.ErrorCode() == "EntityAlreadyExists" {
+				// ensure policy is attached to role
+				listPoliciesInput := iam.ListAttachedRolePoliciesInput{
+					RoleName: &secretsManagerRoleName,
+				}
+				listPoliciesOutput, err := svc.ListAttachedRolePolicies(c.Context, &listPoliciesInput)
+				if err != nil {
+					return nil, fmt.Errorf("failed to list policies for role %s: %w", secretsManagerRoleName, err)
+				}
+				attachedPolicyFound := false
+				for _, policy := range listPoliciesOutput.AttachedPolicies {
+					if *policy.PolicyArn == secretsManagerPolicyArn {
+						attachedPolicyFound = true
+						break
+					}
+				}
+				// if not attached, attach it
+				if !attachedPolicyFound {
+					if err := c.attachPolicyToRole(
+						secretsManagerRoleName,
+						secretsManagerPolicyArn,
+					); err != nil {
+						return nil, err
+					}
+				}
+				// get the role by name to return
+				getRoleInput := iam.GetRoleInput{RoleName: &secretsManagerRoleName}
+				getRoleOutput, err := svc.GetRole(c.Context, &getRoleInput)
+				if err != nil {
+					return nil, fmt.Errorf("failed to existing role with name %s: %w", secretsManagerRoleName, err)
+				}
+
+				return getRoleOutput.Role, nil
+			}
+		}
+		return nil, fmt.Errorf("failed to create role %s: %w", secretsManagerRoleName, err)
+	}
+
+	// attach policy to role
+	if err := c.attachPolicyToRole(
+		secretsManagerRoleName,
+		secretsManagerPolicyArn,
+	); err != nil {
+		return nil, err
+	}
+
+	return secretsManagerRoleResp.Role, nil
 }
 
 // CreateClusterAutoscalingRole creates the IAM role needed for cluster
