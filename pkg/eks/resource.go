@@ -726,6 +726,7 @@ func (c *EksClient) DeleteEksResourceStack(inventory *EksInventory) error {
 		inventory.WorkerRole,
 		inventory.DnsManagementRole,
 		inventory.Dns01ChallengeRole,
+		inventory.SecretsManagerRole,
 		inventory.ClusterAutoscalingRole,
 		inventory.StorageManagementRole,
 	}
