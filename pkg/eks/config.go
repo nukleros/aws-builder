@@ -24,7 +24,7 @@ type EksConfig struct {
 	MaxNodes                         int32                    `yaml:"maxNodes"`
 	DnsManagement                    bool                     `yaml:"dnsManagement"`
 	Dns01Challenge                   bool                     `yaml:"dns01Challenge"`
-	SecretsManager                   bool                     `yaml:"SecretsManager"`
+	SecretsManager                   bool                     `yaml:"secretsManager"`
 	DnsManagementServiceAccount      ServiceAccountConfig     `yaml:"dnsManagementServiceAccount"`
 	Dns01ChallengeServiceAccount     ServiceAccountConfig     `yaml:"dns01ChallengeServiceAccount"`
 	SecretsManagerServiceAccount     ServiceAccountConfig     `yaml:"secretsManagerServiceAccount"`
