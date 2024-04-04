@@ -92,9 +92,10 @@ func (c *RdsClient) DeleteRdsInstance(rdsInstanceId string) error {
 
 	svc := aws_rds.NewFromConfig(*c.AwsConfig)
 
+	skipFinalSnapshot := true
 	deleteRdsInput := aws_rds.DeleteDBInstanceInput{
 		DBInstanceIdentifier: &rdsInstanceId,
-		SkipFinalSnapshot:    true,
+		SkipFinalSnapshot:    &skipFinalSnapshot,
 	}
 	_, err := svc.DeleteDBInstance(c.Context, &deleteRdsInput)
 	if err != nil {
