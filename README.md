@@ -21,7 +21,7 @@ Create an EKS cluster resource stack:
 
 Edit the `sample/eks-config.yaml` file to your requirements.
 
-``bash
+```bash
 ./bin/aws-builder create eks sample/eks-config.yaml
 ```
 

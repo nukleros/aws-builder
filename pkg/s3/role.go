@@ -10,7 +10,7 @@ import (
 )
 
 // CreateRole creates the IAM role needed for DNS management by
-// the Kubernetes service account of an in-cluster supporting service such as
+// the Kubernetes service account of an in-cluster support service such as
 // external-dns using IRSA (IAM role for service accounts).
 func (c *S3Client) CreateRole(
 	tags *[]types.Tag,

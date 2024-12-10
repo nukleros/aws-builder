@@ -1,6 +1,6 @@
 name: sample-cluster-0
-region: "us-east-1"
-awsAccountID: "575822346426"
+region: "us-east-2"
+awsAccountID: "012345678901"
 clusterCidr: "10.0.0.0/16"
 instanceTypes:
   - "t3.micro"
