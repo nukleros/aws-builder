@@ -11,6 +11,7 @@ import (
 	aws_v1 "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"sigs.k8s.io/aws-iam-authenticator/pkg/token"
 )
 
@@ -61,17 +62,15 @@ func (c *EksClusterConnectionInfo) Get(awsConfig *aws.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create new AWS session for generating EKS cluster token: %w", err)
 	}
+	stsApi := sts.New(awsSession)
 
-	// get EKS cluster token
+	// create a new token generator
 	gen, err := token.NewGenerator(true, false)
 	if err != nil {
 		return fmt.Errorf("failed to generate new token: %w", err)
 	}
-	opts := &token.GetTokenOptions{
-		ClusterID: c.ClusterName,
-		Session:   awsSession,
-	}
-	tkn, err := gen.GetWithOptions(opts)
+	// get EKS cluster token
+	tkn, err := gen.GetWithSTS(c.ClusterName, stsApi)
 	if err != nil {
 		return fmt.Errorf("failed to get token with options: %w", err)
 	}
